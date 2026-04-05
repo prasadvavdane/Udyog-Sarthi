@@ -11,6 +11,8 @@ const CustomerSchema = new Schema<Customer>({
   email: { type: String },
   address: { type: String },
   birthday: { type: Date },
+  numberOfGuests: { type: Number },
+  specialNotes: { type: String },
   loyaltyPoints: { type: Number, default: 0 },
   totalSpend: { type: Number, default: 0 },
   lastVisitDate: { type: Date },

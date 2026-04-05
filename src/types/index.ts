@@ -16,6 +16,10 @@ export type BusinessTemplate =
   | 'general-store'
   | 'service-business';
 
+export type FoodType = 'veg' | 'non-veg';
+export type TableStatus = 'available' | 'occupied' | 'billed' | 'reserved';
+export type InvoiceStatus = 'draft' | 'active' | 'paid' | 'closed';
+
 export interface User extends BaseDocument {
   _id: string;
   name: string;
@@ -38,6 +42,10 @@ export interface Product extends BaseDocument {
   stockQuantity: number;
   reorderLevel: number;
   GSTPercentage: number;
+  description?: string;
+  imageUrl?: string;
+  foodType: FoodType;
+  isAvailable: boolean;
   expiryDate?: Date;
   batchNumber?: string;
   activeStatus: boolean;
@@ -55,16 +63,24 @@ export interface Inventory extends BaseDocument {
 export interface Invoice extends BaseDocument {
   _id: string;
   invoiceNumber: string;
+  invoiceDraftId: string;
+  tableId: string;
+  tableName: string;
+  sessionId: string;
   customerId?: string;
+  customerSnapshot?: InvoiceCustomerSnapshot;
   items: InvoiceItem[];
   subtotal: number;
   discount: number;
   GSTAmount: number;
   grandTotal: number;
+  invoiceStatus: InvoiceStatus;
   paymentStatus: 'pending' | 'paid' | 'partial';
   paymentMode?: string;
   notes?: string;
   GSTBreakup: GSTBreakup;
+  closedAt?: Date;
+  printedAt?: Date;
 }
 
 export interface InvoiceItem {
@@ -75,6 +91,17 @@ export interface InvoiceItem {
   GSTPercentage: number;
   GSTAmount: number;
   total: number;
+  category?: string;
+  foodType?: FoodType;
+}
+
+export interface InvoiceCustomerSnapshot {
+  customerId?: string;
+  customerName: string;
+  mobileNumber: string;
+  email?: string;
+  numberOfGuests?: number;
+  specialNotes?: string;
 }
 
 export interface GSTBreakup {
@@ -90,6 +117,8 @@ export interface Customer extends BaseDocument {
   email?: string;
   address?: string;
   birthday?: Date;
+  numberOfGuests?: number;
+  specialNotes?: string;
   loyaltyPoints: number;
   totalSpend: number;
   lastVisitDate?: Date;
@@ -146,12 +175,26 @@ export interface Settings extends BaseDocument {
   phone: string;
   email: string;
   logo?: string;
+  footerMessage?: string;
+  thankYouNote?: string;
   GSTSlabs: number[];
   defaultGST: number;
   currency: string;
   invoicePrefix: string;
   loyaltyPointsPerRupee: number;
   industryTemplate: BusinessTemplate;
+}
+
+export interface RestaurantTable extends BaseDocument {
+  _id: string;
+  tableName: string;
+  status: TableStatus;
+  capacity?: number;
+  isActive: boolean;
+  sessionId?: string;
+  activeInvoiceDraftId?: string;
+  lastInvoiceId?: string;
+  notes?: string;
 }
 
 export interface Tenant {

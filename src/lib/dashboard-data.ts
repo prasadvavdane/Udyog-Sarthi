@@ -159,7 +159,12 @@ export async function getTenantDashboardSnapshot(user: TenantSessionUser): Promi
     getWorkspaceSummary(user),
     Product.find({ tenantId: user.tenantId, activeStatus: true }).sort({ updatedAt: -1 }),
     Customer.find({ tenantId: user.tenantId }).sort({ totalSpend: -1 }),
-    Invoice.find({ tenantId: user.tenantId }).sort({ createdAt: -1 }).limit(120),
+    Invoice.find({
+      tenantId: user.tenantId,
+      invoiceStatus: { $in: ['paid', 'closed'] },
+    })
+      .sort({ createdAt: -1 })
+      .limit(120),
     Payment.find({ tenantId: user.tenantId, status: 'completed' }).sort({ createdAt: -1 }).limit(120),
     Offer.find({ tenantId: user.tenantId, active: true }).sort({ updatedAt: -1 }).limit(12),
   ]);

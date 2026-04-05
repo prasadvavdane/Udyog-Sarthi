@@ -1,30 +1,51 @@
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
-import { getTenantDashboardSnapshot } from '@/lib/dashboard-data';
+import { getWorkspaceSummary } from '@/lib/dashboard-data';
+import { getRestaurantInvoiceHistory } from '@/lib/restaurant-data';
+import { serializeInvoice } from '@/lib/serializers';
 import { requireTenantUser } from '@/lib/server-auth';
 
 export default async function InvoicesPage() {
   const user = await requireTenantUser();
-  const snapshot = await getTenantDashboardSnapshot(user);
+  const [workspace, invoices] = await Promise.all([
+    getWorkspaceSummary(user),
+    getRestaurantInvoiceHistory(user),
+  ]);
 
-  const paidInvoices = snapshot.recentInvoices.filter((invoice) => invoice.paymentStatus === 'paid').length;
+  const serializedInvoices = invoices.map(serializeInvoice);
+  const paidInvoices = serializedInvoices.filter((invoice) => invoice.paymentStatus === 'paid').length;
+  const pendingAmount = serializedInvoices
+    .filter((invoice) => invoice.paymentStatus !== 'paid')
+    .reduce((sum, invoice) => sum + invoice.grandTotal, 0);
+  const totalRevenue = serializedInvoices.reduce((sum, invoice) => sum + invoice.grandTotal, 0);
 
   return (
     <div className="page-grid">
       <PageHeader
-        eyebrow="Collections"
-        title="Invoices with a cleaner settlement story"
-        description="Recent bills, statuses, and totals now sit in one place so the transition from billing to follow-up feels much simpler."
-        badges={[`${formatNumber(snapshot.recentInvoices.length)} recent invoices`, `${formatCurrency(snapshot.metrics.pendingPayments)} pending collections`]}
+        eyebrow="Invoice history"
+        title="Exact bill reopen and print history"
+        description="Every finalized restaurant bill now reopens with the same table, customer, item lines, taxes, totals, and payment mode that were captured during billing."
+        badges={[workspace.tenantCode, `${formatNumber(serializedInvoices.length)} invoices`, `${formatCurrency(totalRevenue)} revenue`]}
+        actions={
+          <Button asChild variant="outline">
+            <Link href="/dashboard/reports">
+              Reports
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        }
       />
 
       <div className="grid gap-4 md:grid-cols-3">
         {[
-          { label: 'Recent invoices', value: formatNumber(snapshot.recentInvoices.length), note: 'Latest billing activity in this tenant' },
+          { label: 'Finalized invoices', value: formatNumber(serializedInvoices.length), note: 'Completed dine-in and table bills' },
           { label: 'Paid invoices', value: formatNumber(paidInvoices), note: 'Completed collections in the current list' },
-          { label: 'Pending amount', value: formatCurrency(snapshot.metrics.pendingPayments), note: 'Follow-up cash still outstanding' },
+          { label: 'Pending amount', value: formatCurrency(pendingAmount), note: 'Bills awaiting complete settlement' },
         ].map((item) => (
           <Card key={item.label}>
             <CardContent className="p-5 md:p-6">
@@ -36,27 +57,39 @@ export default async function InvoicesPage() {
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Invoice feed</CardTitle>
-          <CardDescription>A simpler layout for reviewing payment progress and bill history.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {snapshot.recentInvoices.map((invoice) => (
-            <div key={invoice.id} className="flex flex-col gap-3 rounded-[24px] border border-border bg-white/68 px-4 py-4 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-1">
-                <p className="font-semibold text-foreground">{invoice.invoiceNumber}</p>
-                <p className="text-sm text-muted-foreground">{formatDate(invoice.createdAt)}</p>
+      <div className="grid gap-3">
+        {serializedInvoices.length === 0 ? (
+          <Card>
+            <CardContent className="p-6 text-sm leading-7 text-muted-foreground">
+              No finalized invoices yet. Settle a table bill from the POS screen and it will appear here with exact reopen and print support.
+            </CardContent>
+          </Card>
+        ) : (
+          serializedInvoices.map((invoice) => (
+            <Link
+              key={invoice.id}
+              href={`/dashboard/invoices/${invoice.id}`}
+              className="rounded-[28px] border border-border bg-white/72 p-5 shadow-sm transition hover:border-primary/25 hover:bg-white"
+            >
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="space-y-1">
+                  <p className="text-lg font-semibold text-foreground">{invoice.invoiceNumber}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {invoice.tableName} - {invoice.customerSnapshot?.customerName || 'Walk-in customer'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">{formatDate(invoice.createdAt)}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge variant={invoice.paymentStatus === 'paid' ? 'default' : 'outline'}>{invoice.paymentStatus}</Badge>
+                  <Badge variant="outline">{invoice.paymentMode || 'pending'}</Badge>
+                  <Badge variant="outline">{invoice.invoiceStatus}</Badge>
+                  <p className="font-semibold text-foreground">{formatCurrency(invoice.grandTotal)}</p>
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <Badge variant={invoice.paymentStatus === 'paid' ? 'default' : 'outline'}>{invoice.paymentStatus}</Badge>
-                <Badge variant="outline">{invoice.paymentMode ?? 'cash'}</Badge>
-                <p className="font-semibold text-foreground">{formatCurrency(invoice.grandTotal)}</p>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+            </Link>
+          ))
+        )}
+      </div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import {
   BarChart3,
   CreditCard,
@@ -23,6 +24,10 @@ import { requireTenantUser } from '@/lib/server-auth';
 export default async function DashboardPage() {
   const user = await requireTenantUser();
   const snapshot = await getTenantDashboardSnapshot(user);
+
+  if (user.role === 'billing-staff' && snapshot.workspace.industryTemplate === 'restaurant') {
+    redirect('/dashboard/pos');
+  }
 
   return (
     <div className="page-grid">

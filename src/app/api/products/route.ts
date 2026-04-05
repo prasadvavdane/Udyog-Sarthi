@@ -1,77 +1,67 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import dbConnect from '@/lib/mongodb';
 import Product from '@/models/Product';
+import dbConnect from '@/lib/mongodb';
+import { requireApiUser } from '@/lib/api-auth';
+import { serializeProduct } from '@/lib/serializers';
+import { flattenZodError, productSchema } from '@/lib/validations';
 
 export async function GET() {
+  const auth = await requireApiUser();
+  if (auth.error) {
+    return auth.error;
+  }
+
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.tenantId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     await dbConnect();
-
-    const products = await Product.find({
-      tenantId: session.user.tenantId,
-      activeStatus: true,
-    }).sort({ createdAt: -1 });
-
-    return NextResponse.json({ products });
+    const products = await Product.find({ tenantId: auth.user.tenantId }).sort({ createdAt: -1 });
+    return NextResponse.json({ products: products.map(serializeProduct) });
   } catch (error) {
     console.error('Products fetch error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to load products' }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
+  const auth = await requireApiUser(['business-admin', 'super-admin']);
+  if (auth.error) {
+    return auth.error;
+  }
+
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.tenantId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await request.json();
+    const parsed = productSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: flattenZodError(parsed.error) }, { status: 400 });
     }
 
     await dbConnect();
 
-    const body = (await request.json()) as {
-      productName: string;
-      SKU: string;
-      barcode?: string;
-      HSN_SAC: string;
-      category: string;
-      buyingPrice: number;
-      sellingPrice: number;
-      stockQuantity: number;
-      reorderLevel: number;
-      GSTPercentage: number;
-      expiryDate?: string;
-      batchNumber?: string;
-    };
-
     const product = await Product.create({
-      tenantId: session.user.tenantId,
-      businessId: session.user.businessId,
-      branchId: session.user.branchId,
-      createdBy: session.user.id,
-      productName: body.productName,
-      SKU: body.SKU,
-      barcode: body.barcode,
-      HSN_SAC: body.HSN_SAC,
-      category: body.category,
-      buyingPrice: Number(body.buyingPrice),
-      sellingPrice: Number(body.sellingPrice),
-      stockQuantity: Number(body.stockQuantity),
-      reorderLevel: Number(body.reorderLevel),
-      GSTPercentage: Number(body.GSTPercentage),
-      expiryDate: body.expiryDate,
-      batchNumber: body.batchNumber,
-      activeStatus: true,
+      tenantId: auth.user.tenantId,
+      businessId: auth.user.businessId,
+      branchId: auth.user.branchId,
+      createdBy: auth.user.id,
+      productName: parsed.data.productName,
+      category: parsed.data.category,
+      sellingPrice: parsed.data.price,
+      buyingPrice: parsed.data.costPrice,
+      stockQuantity: parsed.data.stock,
+      GSTPercentage: parsed.data.GST,
+      description: parsed.data.description || undefined,
+      imageUrl: parsed.data.imageUrl || undefined,
+      activeStatus: parsed.data.activeStatus,
+      isAvailable: parsed.data.isAvailable && parsed.data.stock > 0,
+      foodType: parsed.data.foodType,
+      reorderLevel: parsed.data.reorderLevel,
+      SKU: parsed.data.SKU,
+      barcode: parsed.data.barcode || undefined,
+      HSN_SAC: parsed.data.HSN_SAC,
     });
 
-    return NextResponse.json({ product }, { status: 201 });
+    return NextResponse.json({ product: serializeProduct(product) }, { status: 201 });
   } catch (error) {
-    console.error('Product creation error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Product create error:', error);
+    return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
   }
 }

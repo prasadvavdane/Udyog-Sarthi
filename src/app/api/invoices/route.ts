@@ -1,233 +1,178 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import dbConnect from '@/lib/mongodb';
 import Customer from '@/models/Customer';
 import Inventory from '@/models/Inventory';
 import Invoice from '@/models/Invoice';
 import Payment from '@/models/Payment';
 import Product from '@/models/Product';
+import RestaurantTable from '@/models/RestaurantTable';
+import Settings from '@/models/Settings';
+import dbConnect from '@/lib/mongodb';
+import { requireApiUser } from '@/lib/api-auth';
+import { createInvoiceNumber } from '@/lib/restaurant-utils';
+import { serializeInvoice } from '@/lib/serializers';
+import { finalizeInvoiceSchema, flattenZodError } from '@/lib/validations';
 
-type InvoiceRequestItem = {
+type InvoiceLineItem = {
   productId: string;
+  productName: string;
   quantity: number;
 };
 
-type GstLine = {
-  total: number;
-  GSTPercentage: number;
-};
+export async function GET(request: Request) {
+  const auth = await requireApiUser();
+  if (auth.error) {
+    return auth.error;
+  }
 
-function generateInvoiceNumber() {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const random = Math.floor(Math.random() * 10000)
-    .toString()
-    .padStart(4, '0');
-  return `INV-${year}${month}-${random}`;
-}
+  try {
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
 
-function calculateGSTBreakup(items: GstLine[], sameState = true) {
-  let CGST = 0;
-  let SGST = 0;
-  let IGST = 0;
+    await dbConnect();
+    const filter: Record<string, unknown> = {
+      tenantId: auth.user.tenantId,
+    };
 
-  items.forEach((item) => {
-    const gstAmount = (item.total * item.GSTPercentage) / 100;
-    if (sameState) {
-      CGST += gstAmount / 2;
-      SGST += gstAmount / 2;
+    if (status === 'draft') {
+      filter.invoiceStatus = { $in: ['draft', 'active', 'paid'] };
     } else {
-      IGST += gstAmount;
+      filter.invoiceStatus = { $in: ['paid', 'closed'] };
     }
-  });
 
-  return { CGST, SGST, IGST };
+    const invoices = await Invoice.find(filter).sort({ createdAt: -1 });
+    return NextResponse.json({ invoices: invoices.map(serializeInvoice) });
+  } catch (error) {
+    console.error('Invoices fetch error:', error);
+    return NextResponse.json({ error: 'Failed to load invoices' }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
+  const auth = await requireApiUser(['business-admin', 'billing-staff', 'super-admin']);
+  if (auth.error) {
+    return auth.error;
+  }
+
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.tenantId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await request.json();
+    const parsed = finalizeInvoiceSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: flattenZodError(parsed.error) }, { status: 400 });
     }
 
     await dbConnect();
 
-    const body = (await request.json()) as {
-      items: InvoiceRequestItem[];
-      customerMobile?: string;
-      discount?: number;
-      paymentMode?: 'cash' | 'upi' | 'card';
-      paymentAmount?: number;
-    };
+    const invoice = await Invoice.findOne({
+      tenantId: auth.user.tenantId,
+      invoiceDraftId: parsed.data.draftId,
+      invoiceStatus: { $in: ['draft', 'active'] },
+    });
 
-    if (!body.items?.length) {
-      return NextResponse.json({ error: 'At least one line item is required' }, { status: 400 });
+    if (!invoice) {
+      return NextResponse.json({ error: 'Draft invoice not found' }, { status: 404 });
     }
 
-    let subtotal = 0;
-    let gstAmount = 0;
+    const invoiceItems = invoice.items as InvoiceLineItem[];
 
-    const invoiceItems: Array<{
-      productId: string;
-      productName: string;
-      quantity: number;
-      price: number;
-      GSTPercentage: number;
-      GSTAmount: number;
-      total: number;
-    }> = [];
+    if (!invoiceItems.length) {
+      return NextResponse.json({ error: 'Cannot finalize an empty invoice' }, { status: 400 });
+    }
 
-    const stockUpdates: Array<{ productId: string; quantity: number }> = [];
-
-    for (const item of body.items) {
+    for (const item of invoiceItems) {
       const product = await Product.findOne({
         _id: item.productId,
-        tenantId: session.user.tenantId,
-        activeStatus: true,
+        tenantId: auth.user.tenantId,
       });
 
       if (!product) {
-        return NextResponse.json({ error: `Product not found: ${item.productId}` }, { status: 400 });
+        return NextResponse.json({ error: `Product ${item.productName} no longer exists` }, { status: 400 });
       }
 
-      const quantity = Number(item.quantity);
-      if (quantity <= 0) {
-        return NextResponse.json({ error: 'Quantity must be greater than zero' }, { status: 400 });
+      if (product.stockQuantity < item.quantity) {
+        return NextResponse.json({ error: `Insufficient stock for ${item.productName}` }, { status: 400 });
       }
-
-      if (product.stockQuantity < quantity) {
-        return NextResponse.json({ error: `Insufficient stock for ${product.productName}` }, { status: 400 });
-      }
-
-      const price = Number(product.sellingPrice);
-      const GSTPercentage = Number(product.GSTPercentage);
-      const total = quantity * price;
-      const GSTAmount = (total * GSTPercentage) / 100;
-
-      subtotal += total;
-      gstAmount += GSTAmount;
-
-      invoiceItems.push({
-        productId: product._id.toString(),
-        productName: product.productName,
-        quantity,
-        price,
-        GSTPercentage,
-        GSTAmount,
-        total,
-      });
-
-      stockUpdates.push({ productId: product._id.toString(), quantity });
     }
 
-    const discount = Number(body.discount ?? 0);
-    const grandTotal = subtotal + gstAmount - discount;
+    const settings = await Settings.findOne({ tenantId: auth.user.tenantId });
+    const invoiceNumber = createInvoiceNumber(settings?.invoicePrefix ?? 'INV');
+    const paymentAmount = parsed.data.paymentAmount ?? invoice.grandTotal;
+    const paymentStatus = paymentAmount >= invoice.grandTotal ? 'paid' : paymentAmount > 0 ? 'partial' : 'pending';
 
-    let customerId: string | undefined;
-    if (body.customerMobile) {
-      let customer = await Customer.findOne({
-        tenantId: session.user.tenantId,
-        mobile: body.customerMobile,
-      });
+    const finalizedInvoice = await Invoice.findByIdAndUpdate(
+      invoice._id,
+      {
+        invoiceNumber,
+        invoiceStatus: 'paid',
+        paymentStatus,
+        paymentMode: parsed.data.paymentMode,
+      },
+      { new: true },
+    );
 
-      if (!customer) {
-        customer = await Customer.create({
-          tenantId: session.user.tenantId,
-          businessId: session.user.businessId,
-          branchId: session.user.branchId,
-          createdBy: session.user.id,
-          name: 'Walk-in Customer',
-          mobile: body.customerMobile,
+    await Promise.all(
+      invoiceItems.map(async (item: InvoiceLineItem) => {
+        const product = await Product.findByIdAndUpdate(
+          item.productId,
+          {
+            $inc: { stockQuantity: -item.quantity },
+          },
+          { new: true },
+        );
+
+        if (product) {
+          const remainingStock = Math.max(product.stockQuantity, 0);
+          await Product.findByIdAndUpdate(item.productId, {
+            isAvailable: remainingStock > 0,
+          });
+        }
+
+        await Inventory.create({
+          tenantId: auth.user.tenantId,
+          businessId: auth.user.businessId,
+          branchId: auth.user.branchId,
+          createdBy: auth.user.id,
+          productId: item.productId,
+          quantity: -item.quantity,
+          type: 'out',
+          reason: 'Restaurant bill',
+          reference: finalizedInvoice?._id.toString(),
         });
-      }
+      }),
+    );
 
-      customerId = customer._id.toString();
-
-      const pointsEarned = Math.floor(grandTotal * 0.01);
-      await Customer.findByIdAndUpdate(customer._id, {
+    if (invoice.customerId) {
+      const pointsEarned = Math.floor(invoice.grandTotal * 0.01);
+      await Customer.findByIdAndUpdate(invoice.customerId, {
         $inc: {
-          totalSpend: grandTotal,
+          totalSpend: invoice.grandTotal,
           loyaltyPoints: pointsEarned,
         },
         lastVisitDate: new Date(),
       });
     }
 
-    const invoice = await Invoice.create({
-      tenantId: session.user.tenantId,
-      businessId: session.user.businessId,
-      branchId: session.user.branchId,
-      createdBy: session.user.id,
-      invoiceNumber: generateInvoiceNumber(),
-      customerId,
-      items: invoiceItems,
-      subtotal,
-      discount,
-      GSTAmount: gstAmount,
-      grandTotal,
-      paymentStatus: (body.paymentAmount ?? grandTotal) >= grandTotal ? 'paid' : 'pending',
-      paymentMode: body.paymentMode ?? 'cash',
-      GSTBreakup: calculateGSTBreakup(invoiceItems),
-    });
-
-    await Promise.all(
-      stockUpdates.map(async ({ productId, quantity }) => {
-        await Product.findByIdAndUpdate(productId, { $inc: { stockQuantity: -quantity } });
-      }),
-    );
-
-    await Inventory.insertMany(
-      stockUpdates.map(({ productId, quantity }) => ({
-        tenantId: session.user.tenantId,
-        businessId: session.user.businessId,
-        branchId: session.user.branchId,
-        createdBy: session.user.id,
-        productId,
-        quantity: -quantity,
-        type: 'out',
-        reason: 'Sale',
-        reference: invoice._id.toString(),
-      })),
-    );
-
     await Payment.create({
-      tenantId: session.user.tenantId,
-      businessId: session.user.businessId,
-      branchId: session.user.branchId,
-      createdBy: session.user.id,
+      tenantId: auth.user.tenantId,
+      businessId: auth.user.businessId,
+      branchId: auth.user.branchId,
+      createdBy: auth.user.id,
       invoiceId: invoice._id.toString(),
-      amount: body.paymentAmount ?? grandTotal,
-      paymentMode: body.paymentMode ?? 'cash',
-      status: (body.paymentAmount ?? grandTotal) > 0 ? 'completed' : 'pending',
-      transactionId: body.paymentMode === 'upi' ? `UPI-${Date.now()}` : undefined,
+      amount: paymentAmount,
+      paymentMode: parsed.data.paymentMode,
+      status: paymentStatus === 'pending' ? 'pending' : 'completed',
+      transactionId: parsed.data.paymentMode === 'upi' ? `UPI-${Date.now()}` : undefined,
     });
 
-    return NextResponse.json({ invoice }, { status: 201 });
+    await RestaurantTable.findByIdAndUpdate(invoice.tableId, {
+      status: 'billed',
+      lastInvoiceId: invoice._id.toString(),
+      activeInvoiceDraftId: undefined,
+    });
+
+    return NextResponse.json({ invoice: finalizedInvoice ? serializeInvoice(finalizedInvoice) : null });
   } catch (error) {
-    console.error('Invoice creation error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
-
-export async function GET() {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.tenantId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    await dbConnect();
-
-    const invoices = await Invoice.find({ tenantId: session.user.tenantId })
-      .sort({ createdAt: -1 })
-      .limit(50);
-
-    return NextResponse.json({ invoices });
-  } catch (error) {
-    console.error('Invoices fetch error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Invoice finalize error:', error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to finalize invoice' }, { status: 500 });
   }
 }
