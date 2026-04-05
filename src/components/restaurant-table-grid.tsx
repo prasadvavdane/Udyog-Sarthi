@@ -106,7 +106,103 @@ export function RestaurantTableGrid({ initialTables, canManageTables }: Restaura
   };
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+    <div className="space-y-4">
+     <Card>
+  <CardHeader>
+    <CardTitle>Table summary</CardTitle>
+  </CardHeader>
+
+  <CardContent>
+    <div className="grid gap-6 lg:grid-cols-2">
+      
+      {/* Left Section - Live Statuses */}
+      <div className="rounded-[28px] border border-border bg-white/68 p-5">
+        <div className="mb-4">
+          <p className="font-semibold text-foreground">
+            Live statuses across the restaurant floor
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Real-time overview of all active table states.
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(['available', 'occupied', 'billed', 'reserved'] as TableCard['status'][]).map((status) => (
+            <div
+              key={status}
+              className="rounded-[24px] border border-border bg-white px-4 py-4"
+            >
+              <p className="text-sm capitalize text-muted-foreground">
+                {status}
+              </p>
+              <p className="mt-2 text-3xl font-semibold text-foreground">
+                {tables.filter((table) => table.status === status).length}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Right Section - Add New Table */}
+      {canManageTables ? (
+        <div className="rounded-[28px] border border-border bg-white/68 p-5">
+          <div className="mb-4">
+            <p className="font-semibold text-foreground">
+              Add a new table
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Create restaurant seating directly from the UI.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="tableName">Table name</Label>
+              <Input
+                id="tableName"
+                value={newTableName}
+                onChange={(event) => setNewTableName(event.target.value)}
+                placeholder="Table 9"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="capacity">Capacity</Label>
+              <Input
+                id="capacity"
+                type="number"
+                min={1}
+                max={20}
+                value={capacity}
+                onChange={(event) => setCapacity(event.target.value)}
+              />
+            </div>
+
+            <Button
+              type="button"
+              onClick={() => void addTable()}
+              disabled={loading}
+              className="w-full justify-between"
+            >
+              {loading ? (
+                <>
+                  Saving table
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                </>
+              ) : (
+                <>
+                  Create table
+                  <Plus className="h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  </CardContent>
+</Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Restaurant floor</CardTitle>
@@ -119,7 +215,9 @@ export function RestaurantTableGrid({ initialTables, canManageTables }: Restaura
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-lg font-semibold text-foreground">{table.tableName}</p>
-                    <p className="text-sm text-muted-foreground">Session {table.sessionId ? table.sessionId.slice(-6) : 'new'}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Session {table.sessionId ? table.sessionId.slice(-6) : 'new'}
+                    </p>
                   </div>
                   <Badge variant={statusTone[table.status]}>{table.status}</Badge>
                 </div>
@@ -140,55 +238,6 @@ export function RestaurantTableGrid({ initialTables, canManageTables }: Restaura
               </CardContent>
             </Card>
           ))}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Table summary</CardTitle>
-          <CardDescription>Live statuses across the restaurant floor.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            {(['available', 'occupied', 'billed', 'reserved'] as TableCard['status'][]).map((status) => (
-              <div key={status} className="rounded-[24px] border border-border bg-white/68 px-4 py-4">
-                <p className="text-sm capitalize text-muted-foreground">{status}</p>
-                <p className="mt-2 text-3xl font-semibold text-foreground">{tables.filter((table) => table.status === status).length}</p>
-              </div>
-            ))}
-          </div>
-
-          {canManageTables ? (
-            <div className="rounded-[28px] border border-border bg-white/68 p-5">
-              <div className="mb-4">
-                <p className="font-semibold text-foreground">Add a new table</p>
-                <p className="text-sm text-muted-foreground">Create restaurant seating directly from the UI.</p>
-              </div>
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="tableName">Table name</Label>
-                  <Input id="tableName" value={newTableName} onChange={(event) => setNewTableName(event.target.value)} placeholder="Table 9" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="capacity">Capacity</Label>
-                  <Input id="capacity" type="number" min={1} max={20} value={capacity} onChange={(event) => setCapacity(event.target.value)} />
-                </div>
-                <Button type="button" onClick={() => void addTable()} disabled={loading} className="w-full justify-between">
-                  {loading ? (
-                    <>
-                      Saving table
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    </>
-                  ) : (
-                    <>
-                      Create table
-                      <Plus className="h-4 w-4" />
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          ) : null}
         </CardContent>
       </Card>
     </div>

@@ -1,5 +1,6 @@
 import mongoose, { Schema } from 'mongoose';
 import { Product } from '@/types';
+import { buildProductKey } from '@/lib/product-key';
 
 const ProductSchema = new Schema<Product>({
   tenantId: { type: String, required: true },
@@ -7,6 +8,7 @@ const ProductSchema = new Schema<Product>({
   branchId: { type: String, required: true },
   createdBy: { type: String, required: true },
   productName: { type: String, required: true },
+  productKey: { type: String, required: true },
   SKU: { type: String, required: true },
   barcode: { type: String },
   HSN_SAC: { type: String, required: true },
@@ -27,7 +29,19 @@ const ProductSchema = new Schema<Product>({
   timestamps: true,
 });
 
+ProductSchema.pre('validate', function () {
+  const doc = this as mongoose.HydratedDocument<Product>;
+
+  if (doc.productName && doc.category) {
+    doc.productKey = buildProductKey(doc.productName, doc.category);
+  }
+});
+
 // Indexes
+ProductSchema.index(
+  { tenantId: 1, businessId: 1, branchId: 1, productKey: 1 },
+  { unique: true, partialFilterExpression: { productKey: { $exists: true } } },
+);
 ProductSchema.index({ tenantId: 1, SKU: 1 });
 ProductSchema.index({ tenantId: 1, category: 1 });
 ProductSchema.index({ tenantId: 1, barcode: 1 });

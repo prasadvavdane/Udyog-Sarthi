@@ -29,8 +29,8 @@ export default async function ReportsPage() {
       <PageHeader
         eyebrow="Reports"
         title="Operational and compliance reports"
-        description="Daily, weekly, monthly, tax, profit, customer, and table-wise reports now render as structured tables with pagination and PDF, CSV, and Excel export."
-        badges={[workspace.tenantCode, workspace.gstin, workspace.businessName]}
+        description=""
+        // badges={[workspace.tenantCode, workspace.gstin, workspace.businessName]}
       />
 
       {canViewReports ? (

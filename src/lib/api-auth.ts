@@ -1,10 +1,9 @@
-import { getServerSession } from 'next-auth';
+import { auth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
-import { authOptions } from '@/lib/auth';
 import type { TenantSessionUser } from '@/lib/server-auth';
 
 export async function requireApiUser(allowedRoles?: string[]) {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
 
   if (!session?.user?.tenantId) {
     return {

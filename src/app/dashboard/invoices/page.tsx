@@ -29,8 +29,8 @@ export default async function InvoicesPage() {
       <PageHeader
         eyebrow="Invoice history"
         title="Exact bill reopen and print history"
-        description="Every finalized restaurant bill now reopens with the same table, customer, item lines, taxes, totals, and payment mode that were captured during billing."
-        badges={[workspace.tenantCode, `${formatNumber(serializedInvoices.length)} invoices`, `${formatCurrency(totalRevenue)} revenue`]}
+        description=""
+        // badges={[workspace.tenantCode, `${formatNumber(serializedInvoices.length)} invoices`, `${formatCurrency(totalRevenue)} revenue`]}
         actions={
           <Button asChild variant="outline">
             <Link href="/dashboard/reports">

@@ -14,8 +14,8 @@ export default async function PaymentsPage() {
       <PageHeader
         eyebrow="Payments"
         title="Settlement visibility by payment mode"
-        description="This page keeps tender mix and pending payment attention in a simpler, calmer layout than before."
-        badges={[`${formatCurrency(snapshot.metrics.pendingPayments)} pending`, `${snapshot.paymentSplit.length} payment channels`]}
+        description=""
+        // badges={[`${formatCurrency(snapshot.metrics.pendingPayments)} pending`, `${snapshot.paymentSplit.length} payment channels`]}
       />
 
       <div className="grid gap-4 md:grid-cols-2">

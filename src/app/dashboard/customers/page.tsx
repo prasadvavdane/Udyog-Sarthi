@@ -17,8 +17,8 @@ export default async function CustomersPage() {
       <PageHeader
         eyebrow="CRM and loyalty"
         title="Customer relationships made easier to scan"
-        description="This view now surfaces tiers, repeat value, and last visit details without pushing staff into dense tables first."
-        badges={[`${formatNumber(snapshot.metrics.totalCustomers)} total customers`, `${formatCurrency(highestSpend)} top spend`]}
+        description=""
+        // badges={[`${formatNumber(snapshot.metrics.totalCustomers)} total customers`, `${formatCurrency(highestSpend)} top spend`]}
       />
 
       <div className="grid gap-4 md:grid-cols-3">

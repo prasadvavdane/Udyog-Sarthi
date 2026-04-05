@@ -26,15 +26,19 @@ export default async function ProductsPage() {
   const outOfStock = serializedProducts.filter((product) => product.stockQuantity <= 0).length;
 
   return (
-    <div className="page-grid">
+    <div className="page-grid min-w-0 overflow-x-hidden">
       <PageHeader
         eyebrow="Menu master"
         title="Products and kitchen stock"
-        description="Create, edit, delete, price, and manage menu items directly from the frontend with live persistence in MongoDB."
-        badges={[workspace.tenantCode, `${formatNumber(serializedProducts.length)} items`, `${formatNumber(lowStock)} low stock`]}
+        description=""
+        // badges={[
+        //   workspace.tenantCode,
+        //   `${formatNumber(serializedProducts.length)} items`,
+        //   `${formatNumber(lowStock)} low stock`,
+        // ]}
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid min-w-0 gap-4 md:grid-cols-3">
         {[
           { label: 'In stock', value: inStock, note: 'Healthy inventory count' },
           { label: 'Low stock', value: lowStock, note: 'Needs reorder attention' },

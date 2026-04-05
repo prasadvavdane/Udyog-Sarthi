@@ -1,6 +1,5 @@
-import { getServerSession } from 'next-auth';
+import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { authOptions } from '@/lib/auth';
 
 export type TenantSessionUser = {
   id: string;
@@ -14,7 +13,7 @@ export type TenantSessionUser = {
 };
 
 export async function requireTenantUser() {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
 
   if (!session?.user?.tenantId) {
     redirect('/auth/signin');

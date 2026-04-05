@@ -17,17 +17,11 @@ export default async function POSPage() {
   if (workspace.industryTemplate === 'restaurant') {
     const templateMeta = getIndustryTemplateMeta(workspace.industryTemplate);
     const tables = (await getRestaurantTables(user)).map(serializeTable);
-    const occupiedCount = tables.filter((table) => table.status === 'occupied').length;
-    const billedCount = tables.filter((table) => table.status === 'billed').length;
 
     return (
       <div className="page-grid">
         <PageHeader
-          eyebrow="Restaurant floor"
-          title="Table-first POS billing"
-          description="Cashiers land on the live table grid first so every dine-in order stays tied to its table, draft bill, and active session."
-          badges={[workspace.tenantCode, `${tables.length} tables`, `${occupiedCount} occupied`, `${billedCount} billed`]}
-          actions={
+        actions={
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <Kbd>Enter</Kbd>
               Open table
@@ -37,6 +31,10 @@ export default async function POSPage() {
               UPI bill
             </div>
           }
+          eyebrow="Restaurant floor"
+          title="Table-first POS billing"
+          description=""
+          // badges={[workspace.tenantCode, `${tables.length} tables`, `${occupiedCount} occupied`, `${billedCount} billed`]
         />
 
         <RestaurantTableGrid

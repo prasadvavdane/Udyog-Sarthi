@@ -13,7 +13,7 @@ export const productSchema = z.object({
   isAvailable: z.boolean().default(true),
   foodType: z.enum(['veg', 'non-veg']),
   reorderLevel: z.coerce.number().int().min(0).default(5),
-  SKU: z.string().min(2, 'SKU is required'),
+  SKU: z.string().optional().or(z.literal('')),
   barcode: z.string().optional().or(z.literal('')),
   HSN_SAC: z.string().min(2, 'HSN/SAC is required'),
 });

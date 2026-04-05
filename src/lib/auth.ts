@@ -1,4 +1,4 @@
-import type { NextAuthOptions } from 'next-auth';
+import { getServerSession, type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
@@ -86,23 +86,26 @@ export const authOptions: NextAuthOptions = {
           branchId?: string;
           tenantCode?: string;
         };
+
         token.role = authUser.role;
         token.tenantId = authUser.tenantId;
         token.businessId = authUser.businessId;
         token.branchId = authUser.branchId;
         token.tenantCode = authUser.tenantCode;
       }
+
       return token;
     },
     async session({ session, token }) {
-      if (token) {
+      if (session.user) {
         session.user.id = token.sub ?? '';
-        session.user.role = token.role as string;
-        session.user.tenantId = token.tenantId as string;
-        session.user.businessId = token.businessId as string;
-        session.user.branchId = token.branchId as string;
+        session.user.role = (token.role as string) ?? '';
+        session.user.tenantId = (token.tenantId as string) ?? '';
+        session.user.businessId = (token.businessId as string) ?? '';
+        session.user.branchId = (token.branchId as string) ?? '';
         session.user.tenantCode = token.tenantCode as string | undefined;
       }
+
       return session;
     },
   },
@@ -111,3 +114,7 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
+
+export async function auth() {
+  return getServerSession(authOptions);
+}

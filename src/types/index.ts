@@ -33,6 +33,7 @@ export interface User extends BaseDocument {
 export interface Product extends BaseDocument {
   _id: string;
   productName: string;
+  productKey: string;
   SKU: string;
   barcode?: string;
   HSN_SAC: string;
