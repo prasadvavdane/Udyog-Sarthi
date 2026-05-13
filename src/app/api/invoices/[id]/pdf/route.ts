@@ -38,6 +38,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         address: serializedSettings?.address || '',
         GSTIN: serializedSettings?.GSTIN || '',
         phone: serializedSettings?.phone || '',
+        registrationNumber: serializedSettings?.registrationNumber || '',
+        registrationBarcodeValue: serializedSettings?.registrationBarcodeValue || '',
         footerMessage: serializedSettings?.footerMessage || '',
         thankYouNote: serializedSettings?.thankYouNote || '',
       },

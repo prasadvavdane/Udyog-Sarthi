@@ -50,6 +50,8 @@ export async function PUT(request: Request) {
         phone: parsed.data.phone,
         email: parsed.data.email,
         logo: parsed.data.logo || undefined,
+        registrationNumber: parsed.data.registrationNumber || undefined,
+        registrationBarcodeValue: parsed.data.registrationBarcodeValue || undefined,
         footerMessage: parsed.data.footerMessage || undefined,
         thankYouNote: parsed.data.thankYouNote || undefined,
         invoicePrefix: parsed.data.invoicePrefix,

@@ -176,6 +176,8 @@ export interface Settings extends BaseDocument {
   phone: string;
   email: string;
   logo?: string;
+  registrationNumber?: string;
+  registrationBarcodeValue?: string;
   footerMessage?: string;
   thankYouNote?: string;
   GSTSlabs: number[];

@@ -22,6 +22,8 @@ export default async function SettingsPage() {
     phone: '',
     email: user.email ?? '',
     logo: '',
+    registrationNumber: '',
+    registrationBarcodeValue: '',
     footerMessage: '',
     thankYouNote: '',
     invoicePrefix: 'INV',
@@ -51,6 +53,7 @@ export default async function SettingsPage() {
               ['GSTIN', serializedSettings.GSTIN || 'Not configured'],
               ['Phone', serializedSettings.phone || 'Not configured'],
               ['Email', serializedSettings.email || 'Not configured'],
+              ['Registration no', serializedSettings.registrationNumber || 'Not configured'],
               ['Invoice prefix', serializedSettings.invoicePrefix],
               ['Default GST', `${serializedSettings.defaultGST}%`],
             ].map(([label, value]) => (
@@ -70,6 +73,7 @@ export default async function SettingsPage() {
           <CardContent className="grid gap-3">
             {[
               'Vendor name, GSTIN, address, and phone appear in the invoice header and the PDF bill.',
+              'Registration number and its barcode / QR value appear in the printable bill when configured.',
               'Footer message and thank-you note appear in the printed receipt and invoice preview.',
               'Invoice prefix controls the final bill number generated when a draft table order is settled.',
             ].map((note) => (

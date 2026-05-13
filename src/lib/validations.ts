@@ -33,6 +33,8 @@ export const settingsSchema = z.object({
   phone: z.string().min(8, 'Phone number is required'),
   email: z.string().email('Email must be valid'),
   logo: z.string().url('Logo must be a valid URL').optional().or(z.literal('')),
+  registrationNumber: z.string().max(40).optional().or(z.literal('')),
+  registrationBarcodeValue: z.string().max(240).optional().or(z.literal('')),
   footerMessage: z.string().max(160).optional().or(z.literal('')),
   thankYouNote: z.string().max(160).optional().or(z.literal('')),
   invoicePrefix: z.string().min(2).max(8),

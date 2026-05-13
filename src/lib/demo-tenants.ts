@@ -41,6 +41,8 @@ export interface DemoTenantSeed {
   phone: string;
   gstin: string;
   address: string;
+  registrationNumber?: string;
+  registrationBarcodeValue?: string;
   branchId: string;
   businessId: string;
   notes: string[];
@@ -243,6 +245,75 @@ export const demoTenants: DemoTenantSeed[] = [
     offers: [
       { name: '10% dinner combo', type: 'combo', value: 10, minOrder: 799 },
       { name: 'Rs 150 off above Rs 1500', type: 'flat', value: 150, minOrder: 1500 },
+    ],
+  },
+  {
+    tenantCode: 'delights-kitchen',
+    businessName: 'Delights Kitchen',
+    industryTemplate: 'restaurant',
+    email: 'owner@delightskitchen.in',
+    subscriptionPlan: 'scale',
+    phone: '+91 8976338037',
+    gstin: '',
+    address: 'Laxmi Nagar, Thakur Village, Kandivali East, Mumbai, Maharashtra 400101',
+    registrationNumber: '21524011000394',
+    registrationBarcodeValue: '21524011000394',
+    branchId: 'branch-mumbai-thakur-village',
+    businessId: 'biz-delights-kitchen',
+    notes: ['Table billing active', 'Thakur Village outlet'],
+    admin: {
+      name: 'Prasad Vavdane',
+      email: 'admin@delightskitchen.in',
+      password: 'Admin@123',
+      role: 'business-admin',
+    },
+    staff: {
+      name: 'Sneha Patil',
+      email: 'cashier@delightskitchen.in',
+      password: 'Staff@123',
+      role: 'billing-staff',
+    },
+    products: [
+      {
+        productName: 'Tandoori Paneer Platter',
+        SKU: 'DLT-PAN-PLT',
+        barcode: '8902005001001',
+        HSN_SAC: '996331',
+        category: 'Starters',
+        buyingPrice: 130,
+        sellingPrice: 260,
+        stockQuantity: 42,
+        reorderLevel: 10,
+        GSTPercentage: 5,
+      },
+      {
+        productName: 'Veg Schezwan Noodles',
+        SKU: 'DLT-VEG-NOD',
+        barcode: '8902005001002',
+        HSN_SAC: '996331',
+        category: 'Main Course',
+        buyingPrice: 95,
+        sellingPrice: 190,
+        stockQuantity: 60,
+        reorderLevel: 14,
+        GSTPercentage: 5,
+      },
+      {
+        productName: 'Masala Buttermilk',
+        SKU: 'DLT-BTR-MLK',
+        barcode: '8902005001003',
+        HSN_SAC: '220299',
+        category: 'Beverages',
+        buyingPrice: 16,
+        sellingPrice: 55,
+        stockQuantity: 84,
+        reorderLevel: 18,
+        GSTPercentage: 12,
+      },
+    ],
+    offers: [
+      { name: 'Rs 120 off above Rs 999', type: 'flat', value: 120, minOrder: 999 },
+      { name: 'Family dinner saver 12%', type: 'percentage', value: 12, minOrder: 1499 },
     ],
   },
   {

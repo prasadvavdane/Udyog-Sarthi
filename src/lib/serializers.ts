@@ -164,6 +164,8 @@ export type SerializedSettings = {
   phone: string;
   email: string;
   logo: string;
+  registrationNumber: string;
+  registrationBarcodeValue: string;
   footerMessage: string;
   thankYouNote: string;
   invoicePrefix: string;
@@ -304,6 +306,8 @@ export function serializeSettings(settings: UnknownRecord | null | undefined): S
     phone: normalizeString(settings?.phone),
     email: normalizeString(settings?.email),
     logo: normalizeString(settings?.logo),
+    registrationNumber: normalizeString(settings?.registrationNumber),
+    registrationBarcodeValue: normalizeString(settings?.registrationBarcodeValue),
     footerMessage: normalizeString(settings?.footerMessage),
     thankYouNote: normalizeString(settings?.thankYouNote),
     invoicePrefix: normalizeString(settings?.invoicePrefix, 'INV'),

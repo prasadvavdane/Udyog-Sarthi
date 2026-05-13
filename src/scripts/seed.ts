@@ -546,6 +546,8 @@ async function seedTenant(tenant: DemoTenantSeed) {
       address: tenant.address,
       phone: tenant.phone,
       email: tenant.email,
+      registrationNumber: tenant.registrationNumber,
+      registrationBarcodeValue: tenant.registrationBarcodeValue ?? tenant.registrationNumber,
       GSTSlabs: [5, 12, 18, 28],
       defaultGST: tenant.industryTemplate === 'restaurant' ? 5 : 18,
       currency: 'INR',

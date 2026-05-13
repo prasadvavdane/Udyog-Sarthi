@@ -92,6 +92,25 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
+            <Label htmlFor="registrationNumber">Registration no.</Label>
+            <Input
+              id="registrationNumber"
+              value={form.registrationNumber || ''}
+              onChange={(event) => setField('registrationNumber', event.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="registrationBarcodeValue">Registration barcode / QR value</Label>
+            <Input
+              id="registrationBarcodeValue"
+              value={form.registrationBarcodeValue || ''}
+              onChange={(event) => setField('registrationBarcodeValue', event.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
             <Label htmlFor="logo">Logo URL</Label>
             <Input id="logo" value={form.logo || ''} onChange={(event) => setField('logo', event.target.value)} />
           </div>

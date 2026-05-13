@@ -48,7 +48,7 @@ export default async function InvoiceDetailPage({ params }: InvoiceDetailPagePro
       <PageHeader
         eyebrow="Invoice detail"
         title={invoiceData.invoiceNumber}
-        description="This is the exact reconstructed restaurant bill, with the same customer, table, menu items, taxes, discount, and payment mode captured at settlement time."
+        description="This is the exact reconstructed restaurant bill, with the same customer, table, menu items, discount, and payment mode captured at settlement time."
         badges={[
           invoiceData.tableName || tableData?.tableName || 'Table not linked',
           invoiceData.paymentMode || 'pending',
@@ -102,7 +102,7 @@ export default async function InvoiceDetailPage({ params }: InvoiceDetailPagePro
           <Card>
             <CardHeader>
               <CardTitle>Exact billed items</CardTitle>
-              <CardDescription>The original line items, quantities, rates, GST, and totals.</CardDescription>
+              <CardDescription>The original line items, quantities, rates, and totals.</CardDescription>
             </CardHeader>
             <CardContent className="overflow-x-auto">
               <table className="min-w-full divide-y divide-border text-sm">
@@ -111,7 +111,6 @@ export default async function InvoiceDetailPage({ params }: InvoiceDetailPagePro
                     <th className="pb-3 font-medium">Item</th>
                     <th className="pb-3 font-medium">Qty</th>
                     <th className="pb-3 font-medium">Rate</th>
-                    <th className="pb-3 font-medium">GST</th>
                     <th className="pb-3 font-medium text-right">Line total</th>
                   </tr>
                 </thead>
@@ -124,7 +123,6 @@ export default async function InvoiceDetailPage({ params }: InvoiceDetailPagePro
                       </td>
                       <td className="py-4 text-muted-foreground">{item.quantity}</td>
                       <td className="py-4 text-muted-foreground">{formatCurrency(item.price)}</td>
-                      <td className="py-4 text-muted-foreground">{item.GSTPercentage}%</td>
                       <td className="py-4 text-right font-semibold text-foreground">{formatCurrency(item.total)}</td>
                     </tr>
                   ))}
@@ -141,27 +139,8 @@ export default async function InvoiceDetailPage({ params }: InvoiceDetailPagePro
               <CardContent className="space-y-3 text-sm">
                 {[
                   ['Sub total', formatCurrency(invoiceData.subtotal)],
-                  ['Tax', formatCurrency(invoiceData.GSTAmount)],
                   ['Discount', formatCurrency(invoiceData.discount)],
-                  ['Grand total', formatCurrency(invoiceData.grandTotal)],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex items-center justify-between">
-                    <span className="text-muted-foreground">{label}</span>
-                    <span className="font-semibold text-foreground">{value}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>GST breakup</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                {[
-                  ['CGST', formatCurrency(invoiceData.GSTBreakup.CGST)],
-                  ['SGST', formatCurrency(invoiceData.GSTBreakup.SGST)],
-                  ['IGST', formatCurrency(invoiceData.GSTBreakup.IGST)],
+                  ['Total', formatCurrency(invoiceData.grandTotal)],
                 ].map(([label, value]) => (
                   <div key={label} className="flex items-center justify-between">
                     <span className="text-muted-foreground">{label}</span>

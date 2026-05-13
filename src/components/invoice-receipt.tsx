@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
+import QRCode from 'qrcode';
 import { formatCurrency, formatRelativeWindow } from '@/lib/format';
 
 type ReceiptInvoice = {
@@ -37,6 +38,8 @@ type ReceiptSettings = {
   GSTIN: string;
   phone: string;
   logo?: string;
+  registrationNumber?: string;
+  registrationBarcodeValue?: string;
   footerMessage?: string;
   thankYouNote?: string;
 };
@@ -47,8 +50,17 @@ interface InvoiceReceiptProps {
   mode?: 'screen' | 'print';
 }
 
-export function InvoiceReceipt({ invoice, settings, mode = 'screen' }: InvoiceReceiptProps) {
+export async function InvoiceReceipt({ invoice, settings, mode = 'screen' }: InvoiceReceiptProps) {
   const compact = mode === 'print';
+  const qrPayload =
+    settings.registrationBarcodeValue ||
+    settings.registrationNumber ||
+    `invoice:${invoice.invoiceNumber}|total:${invoice.grandTotal}`;
+  const qrLabel = settings.registrationBarcodeValue || settings.registrationNumber ? 'Registration QR' : 'Invoice QR';
+  const qrDataUrl = await QRCode.toDataURL(qrPayload, {
+    margin: 0,
+    width: 160,
+  });
 
   return (
     <div
@@ -66,7 +78,7 @@ export function InvoiceReceipt({ invoice, settings, mode = 'screen' }: InvoiceRe
         <div>
           <p className="text-2xl font-bold uppercase tracking-[0.22em]">{settings.businessName}</p>
           <p className="mt-2 whitespace-pre-line text-[12px] leading-5 text-stone-600">{settings.address}</p>
-          <p className="mt-2 text-[12px] text-stone-600">GSTIN: {settings.GSTIN}</p>
+          {settings.registrationNumber ? <p className="mt-2 text-[12px] text-stone-600">Registration No: {settings.registrationNumber}</p> : null}
           <p className="text-[12px] text-stone-600">Tel: {settings.phone}</p>
         </div>
       </div>
@@ -103,19 +115,17 @@ export function InvoiceReceipt({ invoice, settings, mode = 'screen' }: InvoiceRe
       <div className="my-5 border-t border-dashed border-stone-300" />
 
       <div className="space-y-3 text-[12px]">
-        <div className="grid grid-cols-[1.7fr_0.6fr_0.8fr_0.6fr_0.9fr] gap-2 font-semibold uppercase tracking-[0.12em] text-stone-500">
+        <div className="grid grid-cols-[1.9fr_0.6fr_0.9fr_1fr] gap-2 font-semibold uppercase tracking-[0.12em] text-stone-500">
           <span>Item</span>
           <span className="text-right">Qty</span>
           <span className="text-right">Rate</span>
-          <span className="text-right">GST</span>
           <span className="text-right">Total</span>
         </div>
         {invoice.items.map((item) => (
-          <div key={`${invoice._id}-${item.productId}`} className="grid grid-cols-[1.7fr_0.6fr_0.8fr_0.6fr_0.9fr] gap-2 leading-5">
+          <div key={`${invoice._id}-${item.productId}`} className="grid grid-cols-[1.9fr_0.6fr_0.9fr_1fr] gap-2 leading-5">
             <span className="break-words">{item.productName}</span>
             <span className="text-right">{item.quantity}</span>
             <span className="text-right">{item.price.toFixed(2)}</span>
-            <span className="text-right">{item.GSTPercentage}%</span>
             <span className="text-right">{item.total.toFixed(2)}</span>
           </div>
         ))}
@@ -127,10 +137,6 @@ export function InvoiceReceipt({ invoice, settings, mode = 'screen' }: InvoiceRe
         <div className="flex items-center justify-between">
           <span className="text-stone-500">Sub total</span>
           <span>{formatCurrency(invoice.subtotal)}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-stone-500">Tax</span>
-          <span>{formatCurrency(invoice.GSTAmount)}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-stone-500">Discount</span>
@@ -151,8 +157,9 @@ export function InvoiceReceipt({ invoice, settings, mode = 'screen' }: InvoiceRe
       <div className="space-y-2 text-center text-[12px] text-stone-600">
         <p>{settings.thankYouNote || 'Thank you for dining with us.'}</p>
         <p>{settings.footerMessage || 'Powered by VyaparFlow Restaurant POS'}</p>
-        <div className="mx-auto mt-3 flex h-16 w-16 items-center justify-center rounded-xl border border-dashed border-stone-300 text-[10px] uppercase tracking-[0.18em] text-stone-400">
-          QR
+        <div className="mx-auto mt-3 flex w-fit flex-col items-center gap-2 rounded-2xl border border-dashed border-stone-300 px-3 py-3">
+          <img src={qrDataUrl} alt={qrLabel} className="h-20 w-20" />
+          <span className="text-[10px] uppercase tracking-[0.18em] text-stone-400">{qrLabel}</span>
         </div>
       </div>
     </div>
