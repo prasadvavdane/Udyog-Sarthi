@@ -109,3 +109,21 @@ export function getInvoiceFileName(invoice: {
 
   return `${invoice.invoiceNumber}.pdf`;
 }
+
+export function stripPdfExtension(fileName: string) {
+  return fileName.replace(/\.pdf$/i, '');
+}
+
+export function normalizePdfFileName(input: string, fallback = 'invoice.pdf') {
+  const sanitize = (value: string) =>
+    value
+      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const cleanedInput = sanitize(stripPdfExtension(input));
+  const cleanedFallback = sanitize(stripPdfExtension(fallback)) || 'invoice';
+  const resolvedName = cleanedInput || cleanedFallback;
+
+  return `${resolvedName}.pdf`;
+}

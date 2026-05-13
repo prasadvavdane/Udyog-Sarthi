@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server';
 import Invoice from '@/models/Invoice';
-import Settings from '@/models/Settings';
-import dbConnect from '@/lib/mongodb';
-import { buildRestaurantInvoicePdf } from '@/lib/invoice-pdf';
 import { requireApiUser } from '@/lib/api-auth';
-import { getInvoiceFileName } from '@/lib/restaurant-utils';
-import { serializeInvoice, serializeSettings } from '@/lib/serializers';
+import { buildInvoicePdfContext } from '@/lib/invoice-delivery';
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireApiUser();
@@ -15,42 +11,17 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   try {
     const { id } = await params;
-    await dbConnect();
-
-    const [invoice, settings] = await Promise.all([
-      Invoice.findOne({ _id: id, tenantId: auth.user.tenantId }),
-      Settings.findOne({ tenantId: auth.user.tenantId }),
-    ]);
-
-    if (!invoice || !settings) {
+    const invoiceContext = await buildInvoicePdfContext(id, auth.user.tenantId);
+    if (!invoiceContext) {
       return NextResponse.json({ error: 'Invoice or vendor settings not found' }, { status: 404 });
     }
 
-    const serializedInvoice = serializeInvoice(invoice);
-    const serializedSettings = serializeSettings(settings);
-    const pdfBytes = await buildRestaurantInvoicePdf(
-      {
-        ...serializedInvoice,
-        createdAt: serializedInvoice.createdAt ?? new Date(),
-      },
-      {
-        businessName: serializedSettings?.businessName || 'Restaurant POS',
-        address: serializedSettings?.address || '',
-        GSTIN: serializedSettings?.GSTIN || '',
-        phone: serializedSettings?.phone || '',
-        registrationNumber: serializedSettings?.registrationNumber || '',
-        registrationBarcodeValue: serializedSettings?.registrationBarcodeValue || '',
-        footerMessage: serializedSettings?.footerMessage || '',
-        thankYouNote: serializedSettings?.thankYouNote || '',
-      },
-    );
+    await Invoice.findByIdAndUpdate(invoiceContext.invoice.id, { printedAt: new Date() });
 
-    await Invoice.findByIdAndUpdate(invoice._id, { printedAt: new Date() });
-
-    return new NextResponse(Buffer.from(pdfBytes), {
+    return new NextResponse(Buffer.from(invoiceContext.pdfBytes), {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${getInvoiceFileName(serializedInvoice)}"`,
+        'Content-Disposition': `attachment; filename="${invoiceContext.defaultFileName}"`,
       },
     });
   } catch (error) {

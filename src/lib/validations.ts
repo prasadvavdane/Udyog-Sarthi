@@ -72,6 +72,10 @@ export const finalizeInvoiceSchema = z.object({
   paymentAmount: z.coerce.number().min(0).optional(),
 });
 
+export const emailInvoicePdfSchema = z.object({
+  fileName: z.string().trim().min(1, 'PDF file name is required').max(120, 'PDF file name is too long'),
+});
+
 export const reportFiltersSchema = z.object({
   reportType: z.enum([
     'daily-sales',
@@ -100,3 +104,4 @@ export type CustomerEntryInput = z.infer<typeof customerEntrySchema>;
 export type DraftInvoiceInput = z.infer<typeof draftInvoiceSchema>;
 export type SettingsInput = z.infer<typeof settingsSchema>;
 export type TableInput = z.infer<typeof tableSchema>;
+export type EmailInvoicePdfInput = z.infer<typeof emailInvoicePdfSchema>;
