@@ -87,6 +87,16 @@ interface RestaurantBillingWorkspaceProps {
   customers: CustomerRow[];
 }
 
+type DraftRoutePayload = {
+  error?: string;
+  draft?: DraftInvoice | null;
+};
+
+type FinalizeInvoicePayload = {
+  error?: string;
+  invoice?: { _id: string };
+};
+
 type CartItem = {
   productId: string;
   productName: string;
@@ -103,6 +113,28 @@ type CustomerForm = {
   numberOfGuests: string;
   specialNotes: string;
 };
+
+async function readApiPayload<T extends { error?: string }>(response: Response, fallbackMessage: string) {
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    return (await response.json()) as T;
+  }
+
+  const bodyText = (await response.text()).trim();
+  if (response.status === 401) {
+    throw new Error('Your session expired. Please sign in again and retry.');
+  }
+
+  if (response.status === 403) {
+    throw new Error('You are not allowed to perform this action.');
+  }
+
+  if (bodyText.startsWith('<!DOCTYPE') || bodyText.startsWith('<html')) {
+    throw new Error(`${fallbackMessage}. The server returned an HTML page instead of JSON.`);
+  }
+
+  throw new Error(bodyText || fallbackMessage);
+}
 
 export function RestaurantBillingWorkspace({
   table,
@@ -244,7 +276,10 @@ export function RestaurantBillingWorkspace({
     try {
       const response = await fetch(`/api/tables/${table.id}/draft`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
         body: JSON.stringify({
           tableId: table.id,
           tableName: table.tableName,
@@ -271,7 +306,7 @@ export function RestaurantBillingWorkspace({
         }),
       });
 
-      const payload = (await response.json()) as { error?: string; draft?: DraftInvoice | null };
+      const payload = await readApiPayload<DraftRoutePayload>(response, 'Unable to save draft');
       if (!response.ok || !payload.draft) {
         throw new Error(payload.error ?? 'Unable to save draft');
       }
@@ -301,6 +336,32 @@ export function RestaurantBillingWorkspace({
     table.id,
     table.tableName,
   ]);
+
+  const fetchLatestDraft = useCallback(async () => {
+    const response = await fetch(`/api/tables/${table.id}/draft`, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    const payload = await readApiPayload<DraftRoutePayload>(response, 'Unable to load latest draft');
+    if (!response.ok) {
+      throw new Error(payload.error ?? 'Unable to load latest draft');
+    }
+
+    if (payload.draft) {
+      setDraftMeta({
+        id: payload.draft._id,
+        invoiceDraftId: payload.draft.invoiceDraftId,
+        sessionId: payload.draft.sessionId,
+        invoiceStatus: payload.draft.invoiceStatus,
+      });
+    }
+
+    return payload.draft ?? null;
+  }, [table.id]);
 
   useEffect(() => {
     if (isReadonly) {
@@ -344,8 +405,13 @@ export function RestaurantBillingWorkspace({
 
     try {
       const savedDraft = await persistDraft();
+      const latestDraft =
+        savedDraft || draftMeta.invoiceDraftId || initialDraft?.invoiceDraftId ? null : await fetchLatestDraft();
       const draftId =
-        savedDraft?.invoiceDraftId || draftMeta.invoiceDraftId || initialDraft?.invoiceDraftId;
+        savedDraft?.invoiceDraftId ||
+        latestDraft?.invoiceDraftId ||
+        draftMeta.invoiceDraftId ||
+        initialDraft?.invoiceDraftId;
 
       if (!draftId) {
         throw new Error('Draft bill was not created yet. Please save the order once and try again.');
@@ -353,7 +419,10 @@ export function RestaurantBillingWorkspace({
 
       const response = await fetch('/api/invoices', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
         body: JSON.stringify({
           draftId,
           paymentMode,
@@ -361,10 +430,7 @@ export function RestaurantBillingWorkspace({
         }),
       });
 
-      const payload = (await response.json()) as {
-        error?: string;
-        invoice?: { _id: string };
-      };
+      const payload = await readApiPayload<FinalizeInvoicePayload>(response, 'Unable to finalize invoice');
 
       if (!response.ok || !payload.invoice) {
         throw new Error(payload.error ?? 'Unable to finalize invoice');

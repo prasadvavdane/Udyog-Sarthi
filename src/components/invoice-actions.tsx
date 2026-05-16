@@ -13,6 +13,11 @@ interface InvoiceActionsProps {
   canClose: boolean;
 }
 
+interface CloseTableMessages {
+  success: string;
+  failure: string;
+}
+
 function triggerPdfDownload(pdfBlob: Blob, resolvedFileName: string) {
   const url = URL.createObjectURL(pdfBlob);
   const anchor = document.createElement('a');
@@ -60,6 +65,29 @@ export function InvoiceActions({ invoiceId, fileName, canClose }: InvoiceActions
     };
   };
 
+  const closeTable = async (messages?: CloseTableMessages) => {
+    setClosing(true);
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/close`, { method: 'POST' });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to close table');
+      }
+
+      toast.success(messages?.success ?? 'Table closed and marked available.');
+      router.push('/dashboard/pos');
+      router.refresh();
+      return true;
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : 'Unable to close table';
+      toast.error(messages ? `${messages.failure}: ${errorMessage}` : errorMessage);
+      return false;
+    } finally {
+      setClosing(false);
+    }
+  };
+
   const printInvoice = async () => {
     setPdfAction('print');
     try {
@@ -67,7 +95,14 @@ export function InvoiceActions({ invoiceId, fileName, canClose }: InvoiceActions
       const downloadUrl = triggerPdfDownload(pdfBlob, fileName);
 
       window.open(`/dashboard/invoices/${invoiceId}/print`, '_blank', 'noopener,noreferrer');
-      toast.success('Invoice PDF generated and print view opened.');
+      if (canClose) {
+        await closeTable({
+          success: 'Invoice PDF generated, print view opened, and table closed.',
+          failure: 'Invoice PDF generated and print view opened, but table close failed',
+        });
+      } else {
+        toast.success('Invoice PDF generated and print view opened.');
+      }
       window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1500);
     } catch (error) {
       console.error(error);
@@ -94,13 +129,20 @@ export function InvoiceActions({ invoiceId, fileName, canClose }: InvoiceActions
 
       try {
         const delivery = await emailInvoicePdf(resolvedFileName);
-        toast.success(`Invoice PDF downloaded and emailed to ${delivery.recipientEmail}.`);
+        if (canClose) {
+          await closeTable({
+            success: `Invoice PDF downloaded, emailed to ${delivery.recipientEmail}, and table closed.`,
+            failure: `Invoice PDF downloaded and emailed to ${delivery.recipientEmail}, but table close failed`,
+          });
+        } else {
+          toast.success(`Invoice PDF downloaded and emailed to ${delivery.recipientEmail}.`);
+        }
       } catch (error) {
         console.error(error);
         toast.error(
           error instanceof Error
-            ? `Invoice PDF downloaded, but email failed: ${error.message}`
-            : 'Invoice PDF downloaded, but email failed.',
+            ? `Invoice PDF downloaded, but email failed: ${error.message}${canClose ? '. Table remains billed.' : ''}`
+            : `Invoice PDF downloaded, but email failed.${canClose ? ' Table remains billed.' : ''}`,
         );
       }
     } catch (error) {
@@ -111,38 +153,18 @@ export function InvoiceActions({ invoiceId, fileName, canClose }: InvoiceActions
     }
   };
 
-  const closeTable = async () => {
-    setClosing(true);
-    try {
-      const response = await fetch(`/api/invoices/${invoiceId}/close`, { method: 'POST' });
-      const payload = (await response.json()) as { error?: string };
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Unable to close table');
-      }
-
-      toast.success('Table closed and marked available.');
-      router.push('/dashboard/pos');
-      router.refresh();
-    } catch (error) {
-      console.error(error);
-      toast.error(error instanceof Error ? error.message : 'Unable to close table');
-    } finally {
-      setClosing(false);
-    }
-  };
-
   return (
     <div className="flex flex-wrap gap-3">
-      <Button type="button" onClick={() => void printInvoice()} disabled={pdfAction !== null}>
+      <Button type="button" onClick={() => void printInvoice()} disabled={pdfAction !== null || closing}>
         {pdfAction === 'print' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
         Print invoice
       </Button>
-      <Button type="button" variant="outline" onClick={() => void downloadAndEmailPdf()} disabled={pdfAction !== null}>
+      <Button type="button" variant="outline" onClick={() => void downloadAndEmailPdf()} disabled={pdfAction !== null || closing}>
         {pdfAction === 'download' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
         Download & email PDF
       </Button>
       {canClose ? (
-        <Button type="button" variant="outline" onClick={() => void closeTable()} disabled={closing}>
+        <Button type="button" variant="outline" onClick={() => void closeTable()} disabled={closing || pdfAction !== null}>
           {closing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
           Close table
         </Button>
