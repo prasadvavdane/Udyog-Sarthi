@@ -1,12 +1,14 @@
-import mongoose from 'mongoose';
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
+import mongoose from "mongoose";
 
-dotenv.config({ path: '.env.local' });
+if (!process.env.MONGODB_URI) {
+  dotenv.config({ path: ".env.local" });
+}
 
 const MONGODB_URI = process.env.MONGODB_URI!;
 
 if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
+  throw new Error("Please define the MONGODB_URI environment variable.");
 }
 
 /**
@@ -38,6 +40,7 @@ async function dbConnect() {
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
+      serverSelectionTimeoutMS: 10000,
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {

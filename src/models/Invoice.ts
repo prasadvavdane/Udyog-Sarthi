@@ -12,6 +12,8 @@ const InvoiceItemSchema = new Schema(
     total: { type: Number, required: true },
     category: { type: String },
     foodType: { type: String, enum: ['veg', 'non-veg'] },
+    inventoryCost: { type: Number, default: 0 },
+    margin: { type: Number, default: 0 },
   },
   { _id: false },
 );
@@ -68,6 +70,8 @@ const InvoiceSchema = new Schema<Invoice>(
     paymentMode: { type: String },
     notes: { type: String },
     GSTBreakup: { type: GSTBreakupSchema, required: true },
+    inventoryCostTotal: { type: Number, default: 0 },
+    grossProfit: { type: Number, default: 0 },
     closedAt: { type: Date },
     printedAt: { type: Date },
   },

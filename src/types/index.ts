@@ -25,7 +25,7 @@ export interface User extends BaseDocument {
   name: string;
   email: string;
   password: string;
-  role: 'super-admin' | 'business-admin' | 'billing-staff';
+  role: 'super-admin' | 'business-admin' | 'manager' | 'storekeeper' | 'cashier' | 'billing-staff';
   isActive: boolean;
   lastLogin?: Date;
 }
@@ -80,6 +80,8 @@ export interface Invoice extends BaseDocument {
   paymentMode?: string;
   notes?: string;
   GSTBreakup: GSTBreakup;
+  inventoryCostTotal?: number;
+  grossProfit?: number;
   closedAt?: Date;
   printedAt?: Date;
 }
@@ -94,6 +96,8 @@ export interface InvoiceItem {
   total: number;
   category?: string;
   foodType?: FoodType;
+  inventoryCost?: number;
+  margin?: number;
 }
 
 export interface InvoiceCustomerSnapshot {

@@ -1,10 +1,10 @@
-import { getServerSession, type NextAuthOptions } from 'next-auth';
-import CredentialsProvider from 'next-auth/providers/credentials';
-import bcrypt from 'bcryptjs';
-import mongoose from 'mongoose';
-import dbConnect from '@/lib/mongodb';
-import Tenant from '@/models/Tenant';
-import User from '@/models/User';
+import { getServerSession, type NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
+import dbConnect from "@/lib/mongodb";
+import Tenant from "@/models/Tenant";
+import User from "@/models/User";
 
 async function resolveTenant(tenantLookup: string) {
   const value = tenantLookup.trim();
@@ -16,33 +16,41 @@ async function resolveTenant(tenantLookup: string) {
     }
   }
 
-  return Tenant.findOne({ tenantCode: value, isActive: true });
+  return Tenant.findOne({ tenantCode: value.toLowerCase(), isActive: true });
 }
 
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
-      name: 'credentials',
+      name: "credentials",
       credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
-        tenantId: { label: 'Tenant ID', type: 'text' },
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+        tenantId: { label: "Tenant ID", type: "text" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password || !credentials?.tenantId) {
+        if (
+          !credentials?.email ||
+          !credentials?.password ||
+          !credentials?.tenantId
+        ) {
           return null;
         }
+
+        const tenantLookup = credentials.tenantId.trim();
+        const email = credentials.email.trim().toLowerCase();
+        const password = credentials.password;
 
         try {
           await dbConnect();
 
-          const tenant = await resolveTenant(credentials.tenantId);
+          const tenant = await resolveTenant(tenantLookup);
           if (!tenant) {
             return null;
           }
 
           const user = await User.findOne({
-            email: credentials.email,
+            email,
             tenantId: tenant._id.toString(),
             isActive: true,
           });
@@ -51,7 +59,7 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
+          const isPasswordValid = await bcrypt.compare(password, user.password);
           if (!isPasswordValid) {
             return null;
           }
@@ -67,14 +75,20 @@ export const authOptions: NextAuthOptions = {
             tenantCode: tenant.tenantCode,
           };
         } catch (error) {
-          console.error('Auth error:', error);
+          console.error("Auth authorize failure:", {
+            tenantLookup,
+            email,
+            errorName: error instanceof Error ? error.name : "UnknownError",
+            errorMessage:
+              error instanceof Error ? error.message : String(error),
+          });
           return null;
         }
       },
     }),
   ],
   session: {
-    strategy: 'jwt',
+    strategy: "jwt",
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -98,11 +112,11 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.sub ?? '';
-        session.user.role = (token.role as string) ?? '';
-        session.user.tenantId = (token.tenantId as string) ?? '';
-        session.user.businessId = (token.businessId as string) ?? '';
-        session.user.branchId = (token.branchId as string) ?? '';
+        session.user.id = token.sub ?? "";
+        session.user.role = (token.role as string) ?? "";
+        session.user.tenantId = (token.tenantId as string) ?? "";
+        session.user.businessId = (token.businessId as string) ?? "";
+        session.user.branchId = (token.branchId as string) ?? "";
         session.user.tenantCode = token.tenantCode as string | undefined;
       }
 
@@ -110,7 +124,7 @@ export const authOptions: NextAuthOptions = {
     },
   },
   pages: {
-    signIn: '/auth/signin',
+    signIn: "/auth/signin",
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

@@ -71,6 +71,8 @@ type InvoiceItemRecord = UnknownRecord & {
   total?: number;
   category?: string;
   foodType?: 'veg' | 'non-veg';
+  inventoryCost?: number;
+  margin?: number;
 };
 
 type InvoiceRecord = UnknownRecord & {
@@ -90,6 +92,8 @@ type InvoiceRecord = UnknownRecord & {
   paymentStatus?: string;
   paymentMode?: string;
   notes?: string;
+  inventoryCostTotal?: number;
+  grossProfit?: number;
   GSTBreakup?: {
     CGST?: number;
     SGST?: number;
@@ -203,11 +207,15 @@ export type SerializedInvoice = {
     total: number;
     category: string;
     foodType: 'veg' | 'non-veg';
+    inventoryCost: number;
+    margin: number;
   }>;
   subtotal: number;
   GSTAmount: number;
   discount: number;
   grandTotal: number;
+  inventoryCostTotal: number;
+  grossProfit: number;
   invoiceStatus: 'draft' | 'active' | 'paid' | 'closed';
   paymentStatus: 'pending' | 'paid' | 'partial';
   paymentMode: 'cash' | 'upi' | 'card' | 'qr' | '';
@@ -352,12 +360,16 @@ export function serializeInvoice(invoice: InvoiceRecord): SerializedInvoice {
           total: normalizeNumber(item?.total),
           category: normalizeString(item?.category),
           foodType: normalizeFoodType(item?.foodType),
+          inventoryCost: normalizeNumber(item?.inventoryCost),
+          margin: normalizeNumber(item?.margin),
         }))
       : [],
     subtotal: normalizeNumber(invoice?.subtotal),
     GSTAmount: normalizeNumber(invoice?.GSTAmount),
     discount: normalizeNumber(invoice?.discount),
     grandTotal: normalizeNumber(invoice?.grandTotal),
+    inventoryCostTotal: normalizeNumber(invoice?.inventoryCostTotal),
+    grossProfit: normalizeNumber(invoice?.grossProfit),
     invoiceStatus: normalizeInvoiceStatus(invoice?.invoiceStatus),
     paymentStatus: normalizePaymentStatus(invoice?.paymentStatus),
     paymentMode: normalizePaymentMode(invoice?.paymentMode),

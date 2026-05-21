@@ -1,5 +1,4 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import QRCode from 'qrcode';
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 type PrintableInvoice = {
   invoiceNumber: string;
@@ -47,6 +46,26 @@ function money(value: number) {
   return value.toFixed(2);
 }
 
+function formatReceiptDate(value: string | Date) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatReceiptTime(value: string | Date) {
+  return new Intl.DateTimeFormat("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
+}
+
+function getTokenNumber(sessionId?: string) {
+  return sessionId ? sessionId.slice(-6).toUpperCase() : "NA";
+}
+
 function wrapText(text: string, size: number) {
   if (text.length <= size) {
     return [text];
@@ -54,7 +73,7 @@ function wrapText(text: string, size: number) {
 
   const words = text.split(/\s+/);
   const lines: string[] = [];
-  let current = '';
+  let current = "";
 
   words.forEach((word) => {
     const next = current ? `${current} ${word}` : word;
@@ -76,31 +95,48 @@ function wrapText(text: string, size: number) {
   return lines;
 }
 
-export async function buildRestaurantInvoicePdf(invoice: PrintableInvoice, settings: PrintableSettings) {
-  const qrPayload =
-    settings.registrationBarcodeValue ||
-    settings.registrationNumber ||
-    `invoice:${invoice.invoiceNumber}|total:${invoice.grandTotal}`;
-  const qrLabel = settings.registrationBarcodeValue || settings.registrationNumber ? 'Registration QR' : 'Invoice QR';
-  const qrDataUrl = await QRCode.toDataURL(qrPayload, {
-    margin: 0,
-    width: 120,
-  });
+export async function buildRestaurantInvoicePdf(
+  invoice: PrintableInvoice,
+  settings: PrintableSettings,
+) {
+  const customerName =
+    invoice.customerSnapshot?.customerName || "Walk-in customer";
+  const totalQuantity = invoice.items.reduce(
+    (sum, item) => sum + item.quantity,
+    0,
+  );
+  const noteLines = invoice.customerSnapshot?.specialNotes
+    ? wrapText(`Notes: ${invoice.customerSnapshot.specialNotes}`, 32)
+    : [];
+  const footerLines = [
+    settings.thankYouNote || "Thank you. Visit again.",
+    ...(settings.footerMessage ? wrapText(settings.footerMessage, 34) : []),
+  ];
 
-  const baseHeight = 440;
-  const itemHeight = invoice.items.reduce((sum, item) => sum + wrapText(item.productName, 22).length * 12 + 18, 0);
-  const noteHeight = invoice.customerSnapshot?.specialNotes ? 30 : 0;
-  const pageHeight = Math.max(baseHeight + itemHeight + noteHeight, 620);
+  const baseHeight = 320;
+  const itemHeight = invoice.items.reduce(
+    (sum, item) => sum + wrapText(item.productName, 20).length * 11 + 8,
+    0,
+  );
+  const detailHeight =
+    54 +
+    (invoice.customerSnapshot?.mobileNumber ? 12 : 0) +
+    (invoice.customerSnapshot?.numberOfGuests ? 12 : 0);
+  const noteHeight = noteLines.length ? noteLines.length * 10 + 16 : 0;
+  const footerHeight = footerLines.length * 10 + 16;
+  const pageHeight = Math.max(
+    baseHeight + itemHeight + detailHeight + noteHeight + footerHeight,
+    500,
+  );
   const pageWidth = 280;
 
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([pageWidth, pageHeight]);
   const font = await pdf.embedFont(StandardFonts.Courier);
   const bold = await pdf.embedFont(StandardFonts.CourierBold);
-  const qrImage = await pdf.embedPng(qrDataUrl);
 
-  const left = 20;
-  const right = pageWidth - 20;
+  const left = 18;
+  const right = pageWidth - 18;
   let y = pageHeight - 24;
 
   const drawCentered = (text: string, size: number, useBold = false) => {
@@ -116,143 +152,149 @@ export async function buildRestaurantInvoicePdf(invoice: PrintableInvoice, setti
     y -= size + 4;
   };
 
-  const drawLine = () => {
-    page.drawLine({
-      start: { x: left, y },
-      end: { x: right, y },
-      thickness: 1,
-      color: rgb(0.78, 0.78, 0.78),
+  const drawLeftText = (
+    text: string,
+    x: number,
+    size: number,
+    useBold = false,
+    color = rgb(0.08, 0.08, 0.08),
+  ) => {
+    page.drawText(text, {
+      x,
+      y,
+      size,
+      font: useBold ? bold : font,
+      color,
     });
-    y -= 10;
   };
 
-  const drawPair = (label: string, value: string, useBold = false) => {
-    page.drawText(label, {
-      x: left,
-      y,
-      size: 9,
-      font,
-      color: rgb(0.38, 0.38, 0.38),
-    });
-
+  const drawRightText = (text: string, size: number, useBold = false) => {
     const activeFont = useBold ? bold : font;
-    const valueWidth = activeFont.widthOfTextAtSize(value, 9);
-    page.drawText(value, {
-      x: Math.max(right - valueWidth, left + 80),
+    const width = activeFont.widthOfTextAtSize(text, size);
+    page.drawText(text, {
+      x: Math.max(right - width, left + 84),
       y,
-      size: 9,
+      size,
       font: activeFont,
       color: rgb(0.08, 0.08, 0.08),
     });
+  };
+
+  const drawLine = (spacing = 10) => {
+    page.drawLine({
+      start: { x: left, y },
+      end: { x: right, y },
+      thickness: 0.8,
+      color: rgb(0.52, 0.52, 0.52),
+    });
+    y -= spacing;
+  };
+
+  const drawPair = (label: string, value: string, useBold = false) => {
+    drawLeftText(label, left, 9, false, rgb(0.38, 0.38, 0.38));
+    drawRightText(value, 9, useBold);
     y -= 14;
   };
 
-  drawCentered(settings.businessName.toUpperCase(), 16, true);
-  wrapText(settings.address, 28).forEach((line) => drawCentered(line, 9));
+  const drawReceiptRow = (
+    leftText: string,
+    rightText?: string,
+    useBold = false,
+  ) => {
+    drawLeftText(leftText, left, 8.5, useBold);
+
+    if (rightText) {
+      drawRightText(rightText, 8.5, useBold);
+    }
+
+    y -= 13;
+  };
+
+  drawCentered(settings.businessName.toUpperCase(), 14, true);
+  if (settings.address) {
+    wrapText(settings.address, 28).forEach((line) => drawCentered(line, 8));
+  }
+  if (settings.phone) {
+    drawCentered(`Tel No: ${settings.phone}`, 8);
+  }
   if (settings.registrationNumber) {
-    drawCentered(`Registration No: ${settings.registrationNumber}`, 9);
+    drawCentered(`Lic No: ${settings.registrationNumber}`, 8);
   }
-  drawCentered(`Tel: ${settings.phone}`, 9);
 
   drawLine();
-  drawPair('Invoice', invoice.invoiceNumber, true);
-  drawPair('Date', new Intl.DateTimeFormat('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(invoice.createdAt)));
-  drawPair('Table', invoice.tableName || 'Counter', true);
-  drawPair('Session', invoice.sessionId?.slice(-8) || 'NA');
+  drawPair("Name:", customerName, true);
+  drawLine();
 
-  if (invoice.customerSnapshot?.customerName) {
-    drawPair('Customer', invoice.customerSnapshot.customerName, true);
-  }
-
+  drawReceiptRow(
+    `Date: ${formatReceiptDate(invoice.createdAt)}`,
+    `Dine In: ${invoice.tableName || "Counter"}`,
+  );
+  drawReceiptRow(
+    `Time: ${formatReceiptTime(invoice.createdAt)}`,
+    `Bill No: ${invoice.invoiceNumber}`,
+  );
+  drawReceiptRow(
+    `Payment: ${(invoice.paymentMode || "pending").toUpperCase()}`,
+    `Token No: ${getTokenNumber(invoice.sessionId)}`,
+  );
   if (invoice.customerSnapshot?.mobileNumber) {
-    drawPair('Mobile', invoice.customerSnapshot.mobileNumber);
+    drawReceiptRow(`Mobile: ${invoice.customerSnapshot.mobileNumber}`);
   }
-
   if (invoice.customerSnapshot?.numberOfGuests) {
-    drawPair('Guests', String(invoice.customerSnapshot.numberOfGuests));
+    drawReceiptRow(
+      `Guests: ${String(invoice.customerSnapshot.numberOfGuests)}`,
+    );
   }
 
   drawLine();
 
-  page.drawText('ITEM', { x: left, y, size: 9, font: bold });
-  page.drawText('QTY', { x: 150, y, size: 9, font: bold });
-  page.drawText('RATE', { x: 184, y, size: 9, font: bold });
-  page.drawText('TOTAL', { x: 226, y, size: 9, font: bold });
+  drawLeftText("ITEM", left, 9, true);
+  drawLeftText("QTY", 176, 9, true);
+  drawLeftText("PRICE", 204, 9, true);
+  drawRightText("AMT", 9, true);
   y -= 12;
   drawLine();
 
   invoice.items.forEach((item) => {
-    const lines = wrapText(item.productName, 22);
+    const lines = wrapText(item.productName, 20);
     lines.forEach((line, index) => {
-      page.drawText(line, {
-        x: left,
-        y,
-        size: 9,
-        font: index === 0 ? bold : font,
-      });
+      drawLeftText(line, left, 8.5, index === 0);
 
       if (index === 0) {
-        page.drawText(String(item.quantity), { x: 154, y, size: 9, font });
-        page.drawText(money(item.price), { x: 180, y, size: 9, font });
-        page.drawText(money(item.total), { x: 222, y, size: 9, font });
+        drawLeftText(String(item.quantity), 180, 8.5);
+        drawLeftText(money(item.price), 202, 8.5);
+        drawRightText(money(item.total), 8.5);
       }
 
       y -= 11;
     });
-    y -= 4;
+    y -= 3;
   });
 
   drawLine();
-  drawPair('Sub total', money(invoice.subtotal), true);
-  drawPair('Discount', money(invoice.discount));
+  drawReceiptRow(
+    `Total Qty: ${totalQuantity}`,
+    `Sub Total: ${money(invoice.subtotal)}`,
+  );
+  if (invoice.discount > 0) {
+    drawReceiptRow("Discount", money(invoice.discount));
+  }
 
-  y -= 2;
-  page.drawText('TOTAL', { x: left, y, size: 14, font: bold });
-  const grandWidth = bold.widthOfTextAtSize(money(invoice.grandTotal), 14);
-  page.drawText(money(invoice.grandTotal), {
-    x: right - grandWidth,
-    y,
-    size: 14,
-    font: bold,
-  });
-  y -= 20;
+  drawLine(8);
+  drawLeftText("Grand Total", left, 13, true);
+  drawRightText(`Rs ${money(invoice.grandTotal)}`, 13, true);
+  y -= 18;
 
-  drawPair('Payment', (invoice.paymentMode || 'pending').toUpperCase(), true);
-
-  if (invoice.customerSnapshot?.specialNotes) {
+  if (noteLines.length) {
     drawLine();
-    wrapText(`Notes: ${invoice.customerSnapshot.specialNotes}`, 30).forEach((line) => {
-      page.drawText(line, {
-        x: left,
-        y,
-        size: 8,
-        font,
-        color: rgb(0.38, 0.38, 0.38),
-      });
-      y -= 11;
+    noteLines.forEach((line) => {
+      drawLeftText(line, left, 8);
+      y -= 10;
     });
   }
 
   drawLine();
-
-  const qrSize = 52;
-  page.drawImage(qrImage, {
-    x: (pageWidth - qrSize) / 2,
-    y: Math.max(y - qrSize, 80),
-    width: qrSize,
-    height: qrSize,
-  });
-
-  y = Math.max(y - 64, 52);
-  drawCentered(qrLabel, 8);
-  drawCentered(settings.thankYouNote || 'Thank you for dining with us.', 9);
-  drawCentered(settings.footerMessage || 'Generated by the restaurant POS workspace', 8);
+  footerLines.forEach((line) => drawCentered(line, 8));
 
   return pdf.save();
 }

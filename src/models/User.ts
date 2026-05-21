@@ -11,7 +11,7 @@ const UserSchema = new Schema<User>({
   password: { type: String, required: true },
   role: {
     type: String,
-    enum: ['super-admin', 'business-admin', 'billing-staff'],
+    enum: ['super-admin', 'business-admin', 'manager', 'storekeeper', 'cashier', 'billing-staff'],
     required: true
   },
   isActive: { type: Boolean, default: true },

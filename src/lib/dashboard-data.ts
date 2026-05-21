@@ -1,14 +1,15 @@
-import Customer from '@/models/Customer';
-import Invoice from '@/models/Invoice';
-import Offer from '@/models/Offer';
-import Payment from '@/models/Payment';
-import Product from '@/models/Product';
-import Settings from '@/models/Settings';
-import Tenant from '@/models/Tenant';
-import dbConnect from '@/lib/mongodb';
-import { getIndustryTemplateMeta } from '@/lib/demo-tenants';
-import type { BusinessTemplate } from '@/types';
-import type { TenantSessionUser } from '@/lib/server-auth';
+import Customer from "@/models/Customer";
+import InventoryItem from "@/models/InventoryItem";
+import Invoice from "@/models/Invoice";
+import Offer from "@/models/Offer";
+import Payment from "@/models/Payment";
+import Product from "@/models/Product";
+import Settings from "@/models/Settings";
+import Tenant from "@/models/Tenant";
+import dbConnect from "@/lib/mongodb";
+import { getIndustryTemplateMeta } from "@/lib/demo-tenants";
+import type { BusinessTemplate } from "@/types";
+import type { TenantSessionUser } from "@/lib/server-auth";
 
 type InvoiceLine = {
   productId: string;
@@ -46,7 +47,7 @@ function getLastNDays(days: number) {
 }
 
 function safeTemplate(template?: BusinessTemplate): BusinessTemplate {
-  return template ?? 'retail';
+  return template ?? "retail";
 }
 
 export type WorkspaceSummary = {
@@ -99,7 +100,7 @@ export type DashboardSnapshot = {
     sellingPrice: number;
     buyingPrice: number;
     gst: number;
-    status: 'in-stock' | 'low-stock' | 'out-of-stock';
+    status: "in-stock" | "low-stock" | "out-of-stock";
   }>;
   customerList: Array<{
     id: string;
@@ -108,7 +109,7 @@ export type DashboardSnapshot = {
     totalSpend: number;
     loyaltyPoints: number;
     lastVisitDate?: Date;
-    tier: 'Bronze' | 'Silver' | 'Gold';
+    tier: "Bronze" | "Silver" | "Gold";
   }>;
   recentInvoices: Array<{
     id: string;
@@ -127,12 +128,14 @@ export type DashboardSnapshot = {
   }>;
 };
 
-export async function getWorkspaceSummary(user: TenantSessionUser): Promise<WorkspaceSummary> {
+export async function getWorkspaceSummary(
+  user: TenantSessionUser,
+): Promise<WorkspaceSummary> {
   await dbConnect();
 
   const [settings, tenant] = await Promise.all([
-    Settings.findOne({ tenantId: user.tenantId }),
-    Tenant.findById(user.tenantId),
+    Settings.findOne({ tenantId: user.tenantId }).lean(),
+    Tenant.findById(user.tenantId).lean(),
   ]);
 
   const industryTemplate = safeTemplate(
@@ -141,36 +144,64 @@ export async function getWorkspaceSummary(user: TenantSessionUser): Promise<Work
   );
 
   return {
-    businessName: settings?.businessName ?? tenant?.name ?? 'Billing Workspace',
-    gstin: settings?.GSTIN ?? 'GST setup pending',
-    phone: settings?.phone ?? 'Phone not configured',
-    email: settings?.email ?? user.email ?? 'Email not configured',
+    businessName: settings?.businessName ?? tenant?.name ?? "Billing Workspace",
+    gstin: settings?.GSTIN ?? "GST setup pending",
+    phone: settings?.phone ?? "Phone not configured",
+    email: settings?.email ?? user.email ?? "Email not configured",
     industryTemplate,
     tenantCode: tenant?.tenantCode ?? user.tenantCode ?? user.tenantId,
-    subscriptionPlan: tenant?.subscriptionPlan ?? 'starter',
+    subscriptionPlan: tenant?.subscriptionPlan ?? "starter",
     branchId: user.branchId,
   };
 }
 
-export async function getTenantDashboardSnapshot(user: TenantSessionUser): Promise<DashboardSnapshot> {
+export async function getTenantDashboardSnapshot(
+  user: TenantSessionUser,
+): Promise<DashboardSnapshot> {
   await dbConnect();
 
-  const [workspace, products, customers, invoices, payments, offers] = await Promise.all([
+  const [
+    workspace,
+    products,
+    inventoryItems,
+    customers,
+    invoices,
+    payments,
+    offers,
+  ] = await Promise.all([
     getWorkspaceSummary(user),
-    Product.find({ tenantId: user.tenantId, activeStatus: true }).sort({ updatedAt: -1 }),
-    Customer.find({ tenantId: user.tenantId }).sort({ totalSpend: -1 }),
+    Product.find({ tenantId: user.tenantId, activeStatus: true })
+      .sort({ updatedAt: -1 })
+      .lean(),
+    InventoryItem.find({
+      tenantId: user.tenantId,
+      branchId: user.branchId,
+      isActive: true,
+    })
+      .sort({ updatedAt: -1 })
+      .lean(),
+    Customer.find({ tenantId: user.tenantId }).sort({ totalSpend: -1 }).lean(),
     Invoice.find({
       tenantId: user.tenantId,
-      invoiceStatus: { $in: ['paid', 'closed'] },
+      invoiceStatus: { $in: ["paid", "closed"] },
     })
       .sort({ createdAt: -1 })
-      .limit(120),
-    Payment.find({ tenantId: user.tenantId, status: 'completed' }).sort({ createdAt: -1 }).limit(120),
-    Offer.find({ tenantId: user.tenantId, active: true }).sort({ updatedAt: -1 }).limit(12),
+      .limit(120)
+      .lean(),
+    Payment.find({ tenantId: user.tenantId, status: "completed" })
+      .sort({ createdAt: -1 })
+      .limit(120)
+      .lean(),
+    Offer.find({ tenantId: user.tenantId, active: true })
+      .sort({ updatedAt: -1 })
+      .limit(12)
+      .lean(),
   ]);
 
   const templateMeta = getIndustryTemplateMeta(workspace.industryTemplate);
-  const productLookup = new Map(products.map((product) => [product._id.toString(), product]));
+  const productLookup = new Map(
+    products.map((product) => [product._id.toString(), product]),
+  );
   const today = startOfToday();
   const monthStart = startOfMonth();
 
@@ -184,11 +215,21 @@ export async function getTenantDashboardSnapshot(user: TenantSessionUser): Promi
   const salesSeries = new Map(
     getLastNDays(7).map((date) => [
       dayKey(date),
-      { label: date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }), sales: 0, profit: 0 },
+      {
+        label: date.toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+        }),
+        sales: 0,
+        profit: 0,
+      },
     ]),
   );
 
-  const soldByProduct = new Map<string, { name: string; category: string; sold: number; revenue: number }>();
+  const soldByProduct = new Map<
+    string,
+    { name: string; category: string; sold: number; revenue: number }
+  >();
 
   invoices.forEach((invoice) => {
     const createdAt = new Date(invoice.createdAt);
@@ -203,7 +244,7 @@ export async function getTenantDashboardSnapshot(user: TenantSessionUser): Promi
       monthRevenue += invoice.grandTotal;
     }
 
-    if (invoice.paymentStatus !== 'paid') {
+    if (invoice.paymentStatus !== "paid") {
       pendingPayments += invoice.grandTotal;
     }
 
@@ -217,7 +258,7 @@ export async function getTenantDashboardSnapshot(user: TenantSessionUser): Promi
 
       const current = soldByProduct.get(item.productId.toString()) ?? {
         name: item.productName,
-        category: product?.category ?? 'General',
+        category: product?.category ?? "General",
         sold: 0,
         revenue: 0,
       };
@@ -237,13 +278,16 @@ export async function getTenantDashboardSnapshot(user: TenantSessionUser): Promi
 
   const paymentSplitMap = new Map<string, number>();
   payments.forEach((payment) => {
-    paymentSplitMap.set(payment.paymentMode, (paymentSplitMap.get(payment.paymentMode) ?? 0) + payment.amount);
+    paymentSplitMap.set(
+      payment.paymentMode,
+      (paymentSplitMap.get(payment.paymentMode) ?? 0) + payment.amount,
+    );
   });
 
   if (paymentSplitMap.size === 0) {
-    paymentSplitMap.set('cash', 0);
-    paymentSplitMap.set('upi', 0);
-    paymentSplitMap.set('card', 0);
+    paymentSplitMap.set("cash", 0);
+    paymentSplitMap.set("upi", 0);
+    paymentSplitMap.set("card", 0);
   }
 
   const topProducts = [...soldByProduct.entries()]
@@ -258,10 +302,24 @@ export async function getTenantDashboardSnapshot(user: TenantSessionUser): Promi
     .sort((left, right) => right.sold - left.sold)
     .slice(0, 5);
 
+  const inventorySource = inventoryItems.length > 0 ? inventoryItems : products;
+
   const inventory = {
-    inStock: products.filter((product) => product.stockQuantity > product.reorderLevel).length,
-    lowStock: products.filter((product) => product.stockQuantity > 0 && product.stockQuantity <= product.reorderLevel).length,
-    outOfStock: products.filter((product) => product.stockQuantity <= 0).length,
+    inStock: inventorySource.filter(
+      (record) =>
+        record.stockQuantity > record.reorderLevel ||
+        record.currentStock > record.reorderLevel,
+    ).length,
+    lowStock: inventorySource.filter((record) => {
+      const quantity =
+        "currentStock" in record ? record.currentStock : record.stockQuantity;
+      return quantity > 0 && quantity <= record.reorderLevel;
+    }).length,
+    outOfStock: inventorySource.filter((record) => {
+      const quantity =
+        "currentStock" in record ? record.currentStock : record.stockQuantity;
+      return quantity <= 0;
+    }).length,
     fastMoving: topProducts.length,
   };
 
@@ -280,7 +338,10 @@ export async function getTenantDashboardSnapshot(user: TenantSessionUser): Promi
     },
     inventory,
     salesTrend: [...salesSeries.values()],
-    paymentSplit: [...paymentSplitMap.entries()].map(([name, value]) => ({ name, value })),
+    paymentSplit: [...paymentSplitMap.entries()].map(([name, value]) => ({
+      name,
+      value,
+    })),
     topProducts,
     productCatalog: products.map((product) => ({
       id: product._id.toString(),
@@ -294,10 +355,10 @@ export async function getTenantDashboardSnapshot(user: TenantSessionUser): Promi
       gst: product.GSTPercentage,
       status:
         product.stockQuantity <= 0
-          ? 'out-of-stock'
+          ? "out-of-stock"
           : product.stockQuantity <= product.reorderLevel
-            ? 'low-stock'
-            : 'in-stock',
+            ? "low-stock"
+            : "in-stock",
     })),
     customerList: customers.slice(0, 8).map((customer) => ({
       id: customer._id.toString(),
@@ -306,7 +367,12 @@ export async function getTenantDashboardSnapshot(user: TenantSessionUser): Promi
       totalSpend: customer.totalSpend,
       loyaltyPoints: customer.loyaltyPoints,
       lastVisitDate: customer.lastVisitDate,
-      tier: customer.totalSpend >= 20000 ? 'Gold' : customer.totalSpend >= 8000 ? 'Silver' : 'Bronze',
+      tier:
+        customer.totalSpend >= 20000
+          ? "Gold"
+          : customer.totalSpend >= 8000
+            ? "Silver"
+            : "Bronze",
     })),
     recentInvoices: invoices.slice(0, 8).map((invoice) => ({
       id: invoice._id.toString(),

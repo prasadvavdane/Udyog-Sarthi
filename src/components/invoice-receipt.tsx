@@ -1,6 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
-import QRCode from 'qrcode';
-import { formatCurrency, formatRelativeWindow } from '@/lib/format';
+import { formatCurrency } from "@/lib/format";
 
 type ReceiptInvoice = {
   _id: string;
@@ -47,120 +45,160 @@ type ReceiptSettings = {
 interface InvoiceReceiptProps {
   invoice: ReceiptInvoice;
   settings: ReceiptSettings;
-  mode?: 'screen' | 'print';
+  mode?: "screen" | "print";
 }
 
-export async function InvoiceReceipt({ invoice, settings, mode = 'screen' }: InvoiceReceiptProps) {
-  const compact = mode === 'print';
-  const qrPayload =
-    settings.registrationBarcodeValue ||
-    settings.registrationNumber ||
-    `invoice:${invoice.invoiceNumber}|total:${invoice.grandTotal}`;
-  const qrLabel = settings.registrationBarcodeValue || settings.registrationNumber ? 'Registration QR' : 'Invoice QR';
-  const qrDataUrl = await QRCode.toDataURL(qrPayload, {
-    margin: 0,
-    width: 160,
-  });
+function formatReceiptDate(value: string | Date) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatReceiptTime(value: string | Date) {
+  return new Intl.DateTimeFormat("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
+}
+
+function formatLineAmount(value: number) {
+  return value.toFixed(2);
+}
+
+function getTokenNumber(sessionId: string) {
+  return sessionId.slice(-6).toUpperCase();
+}
+
+export function InvoiceReceipt({
+  invoice,
+  settings,
+  mode = "screen",
+}: InvoiceReceiptProps) {
+  const compact = mode === "print";
+  const totalQuantity = invoice.items.reduce(
+    (sum, item) => sum + item.quantity,
+    0,
+  );
+  const customerName =
+    invoice.customerSnapshot?.customerName?.trim() || "Walk-in customer";
+  const thankYouNote = settings.thankYouNote || "Thank you. Visit again.";
 
   return (
     <div
       className={[
-        'mx-auto w-full rounded-[26px] border border-stone-300 bg-[#fffef9] font-mono text-[#111111] shadow-[0_20px_50px_rgba(32,25,18,0.12)]',
-        compact ? 'max-w-[360px] p-5 shadow-none' : 'max-w-[420px] p-6',
-      ].join(' ')}
+        "mx-auto w-full bg-white font-mono text-[#111111]",
+        compact
+          ? "max-w-[320px] p-3 text-[11px] leading-5 shadow-none"
+          : "max-w-[360px] border border-stone-300 p-4 text-[12px] leading-5 shadow-[0_18px_45px_rgba(32,25,18,0.12)]",
+      ].join(" ")}
     >
-      <div className="space-y-4 text-center">
-        {settings.logo ? (
-          <div className="flex justify-center">
-            <img src={settings.logo} alt={settings.businessName} className="max-h-14 w-auto object-contain" />
-          </div>
+      <div className="text-center">
+        <p className="break-words text-[15px] font-bold uppercase tracking-[0.16em]">
+          {settings.businessName}
+        </p>
+        {settings.address ? (
+          <p className="mt-1 whitespace-pre-line text-stone-700">
+            {settings.address}
+          </p>
         ) : null}
-        <div>
-          <p className="text-2xl font-bold uppercase tracking-[0.22em]">{settings.businessName}</p>
-          <p className="mt-2 whitespace-pre-line text-[12px] leading-5 text-stone-600">{settings.address}</p>
-          {settings.registrationNumber ? <p className="mt-2 text-[12px] text-stone-600">Registration No: {settings.registrationNumber}</p> : null}
-          <p className="text-[12px] text-stone-600">Tel: {settings.phone}</p>
+        {settings.phone ? (
+          <p className="mt-1 text-stone-700">Tel No: {settings.phone}</p>
+        ) : null}
+        {settings.registrationNumber ? (
+          <p className="mt-1 text-stone-700">
+            Lic No: {settings.registrationNumber}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="my-3 border-y border-stone-400 py-2">
+        <div className="grid grid-cols-[auto_1fr] items-start gap-2">
+          <span>Name:</span>
+          <span className="break-words text-right font-semibold">
+            {customerName}
+          </span>
         </div>
       </div>
 
-      <div className="my-5 border-t border-dashed border-stone-300" />
-
-      <div className="grid grid-cols-2 gap-3 text-[12px] leading-5">
-        <div>
-          <p className="text-stone-500">Invoice</p>
-          <p className="font-semibold">{invoice.invoiceNumber}</p>
+      <div className="space-y-1">
+        <div className="flex items-start justify-between gap-3">
+          <span>Date: {formatReceiptDate(invoice.createdAt)}</span>
+          <span>Dine In: {invoice.tableName || "Counter"}</span>
         </div>
-        <div className="text-right">
-          <p className="text-stone-500">Date & time</p>
-          <p className="font-semibold">{formatRelativeWindow(invoice.createdAt)}</p>
+        <div className="flex items-start justify-between gap-3">
+          <span>Time: {formatReceiptTime(invoice.createdAt)}</span>
+          <span>Bill No: {invoice.invoiceNumber}</span>
         </div>
-        <div>
-          <p className="text-stone-500">Table</p>
-          <p className="font-semibold">{invoice.tableName}</p>
+        <div className="flex items-start justify-between gap-3">
+          <span>
+            Payment: {(invoice.paymentMode || "pending").toUpperCase()}
+          </span>
+          <span>Token No: {getTokenNumber(invoice.sessionId)}</span>
         </div>
-        <div className="text-right">
-          <p className="text-stone-500">Session</p>
-          <p className="font-semibold">{invoice.sessionId.slice(-8)}</p>
-        </div>
+        {invoice.customerSnapshot?.mobileNumber ? (
+          <p>Mobile: {invoice.customerSnapshot.mobileNumber}</p>
+        ) : null}
+        {invoice.customerSnapshot?.numberOfGuests ? (
+          <p>Guests: {invoice.customerSnapshot.numberOfGuests}</p>
+        ) : null}
       </div>
 
-      <div className="mt-4 rounded-2xl border border-stone-200 bg-white/70 p-3 text-[12px] leading-5">
-        <p className="text-stone-500">Customer</p>
-        <p className="font-semibold">{invoice.customerSnapshot?.customerName || 'Walk-in customer'}</p>
-        <p className="text-stone-600">{invoice.customerSnapshot?.mobileNumber || 'No mobile captured'}</p>
-        {invoice.customerSnapshot?.numberOfGuests ? <p className="text-stone-600">Guests: {invoice.customerSnapshot.numberOfGuests}</p> : null}
-        {invoice.customerSnapshot?.specialNotes ? <p className="text-stone-600">Notes: {invoice.customerSnapshot.specialNotes}</p> : null}
-      </div>
-
-      <div className="my-5 border-t border-dashed border-stone-300" />
-
-      <div className="space-y-3 text-[12px]">
-        <div className="grid grid-cols-[1.9fr_0.6fr_0.9fr_1fr] gap-2 font-semibold uppercase tracking-[0.12em] text-stone-500">
+      <div className="my-3 border-y border-stone-400 py-2">
+        <div className="grid grid-cols-[1.7fr_0.45fr_0.8fr_0.9fr] gap-2 font-semibold">
           <span>Item</span>
           <span className="text-right">Qty</span>
-          <span className="text-right">Rate</span>
-          <span className="text-right">Total</span>
+          <span className="text-right">Price</span>
+          <span className="text-right">Amount</span>
         </div>
+      </div>
+
+      <div className="space-y-2">
         {invoice.items.map((item) => (
-          <div key={`${invoice._id}-${item.productId}`} className="grid grid-cols-[1.9fr_0.6fr_0.9fr_1fr] gap-2 leading-5">
+          <div
+            key={`${invoice._id}-${item.productId}`}
+            className="grid grid-cols-[1.7fr_0.45fr_0.8fr_0.9fr] gap-2"
+          >
             <span className="break-words">{item.productName}</span>
             <span className="text-right">{item.quantity}</span>
-            <span className="text-right">{item.price.toFixed(2)}</span>
-            <span className="text-right">{item.total.toFixed(2)}</span>
+            <span className="text-right">{formatLineAmount(item.price)}</span>
+            <span className="text-right">{formatLineAmount(item.total)}</span>
           </div>
         ))}
       </div>
 
-      <div className="my-5 border-t border-dashed border-stone-300" />
-
-      <div className="space-y-2 text-[12px]">
-        <div className="flex items-center justify-between">
-          <span className="text-stone-500">Sub total</span>
-          <span>{formatCurrency(invoice.subtotal)}</span>
+      <div className="mt-3 border-t border-stone-400 pt-2">
+        <div className="flex items-center justify-between gap-3">
+          <span>Total Qty: {totalQuantity}</span>
+          <span>Sub Total: {formatLineAmount(invoice.subtotal)}</span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-stone-500">Discount</span>
-          <span>{formatCurrency(invoice.discount)}</span>
-        </div>
-        <div className="mt-3 flex items-center justify-between border-t border-dashed border-stone-300 pt-3 text-xl font-bold">
-          <span>Total</span>
+        {invoice.discount > 0 ? (
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <span>Discount</span>
+            <span>{formatLineAmount(invoice.discount)}</span>
+          </div>
+        ) : null}
+        <div className="mt-2 flex items-center justify-between border-t border-stone-400 pt-2 text-[15px] font-bold">
+          <span>Grand Total</span>
           <span>{formatCurrency(invoice.grandTotal)}</span>
-        </div>
-        <div className="flex items-center justify-between pt-1 text-[12px] text-stone-600">
-          <span>Payment mode</span>
-          <span className="font-semibold uppercase">{invoice.paymentMode || 'pending'}</span>
         </div>
       </div>
 
-      <div className="my-5 border-t border-dashed border-stone-300" />
-
-      <div className="space-y-2 text-center text-[12px] text-stone-600">
-        <p>{settings.thankYouNote || 'Thank you for dining with us.'}</p>
-        <p>{settings.footerMessage || 'Powered by VyaparFlow Restaurant POS'}</p>
-        <div className="mx-auto mt-3 flex w-fit flex-col items-center gap-2 rounded-2xl border border-dashed border-stone-300 px-3 py-3">
-          <img src={qrDataUrl} alt={qrLabel} className="h-20 w-20" />
-          <span className="text-[10px] uppercase tracking-[0.18em] text-stone-400">{qrLabel}</span>
+      {invoice.customerSnapshot?.specialNotes ? (
+        <div className="mt-3 border-t border-stone-400 pt-2">
+          <p className="break-words">
+            Notes: {invoice.customerSnapshot.specialNotes}
+          </p>
         </div>
+      ) : null}
+
+      <div className="mt-3 border-t border-stone-400 pt-2 text-center text-stone-700">
+        <p>{thankYouNote}</p>
+        {settings.footerMessage ? (
+          <p className="mt-1 break-words">{settings.footerMessage}</p>
+        ) : null}
       </div>
     </div>
   );

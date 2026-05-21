@@ -35,6 +35,7 @@ type ReportInvoiceItem = {
   total: number;
   GSTPercentage: number;
   GSTAmount: number;
+  inventoryCost?: number;
 };
 
 function defaultRange() {
@@ -135,7 +136,7 @@ export async function buildReportData(tenantId: string, reportType: ReportType, 
       (invoice.items as ReportInvoiceItem[]).forEach((item: ReportInvoiceItem) => {
         const key = item.productId.toString();
         const product = productLookup.get(key);
-        const cost = (product?.buyingPrice ?? 0) * item.quantity;
+        const cost = item.inventoryCost ?? (product?.buyingPrice ?? 0) * item.quantity;
         const revenue = item.total;
         const row = grouped.get(key) ?? { item: item.productName, qty: 0, revenue: 0, cost: 0, profit: 0 };
         row.qty += item.quantity;

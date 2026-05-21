@@ -1,8 +1,14 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   CreditCard,
   Loader2,
@@ -13,16 +19,22 @@ import {
   Smartphone,
   UserRound,
   Wallet,
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { customerEntrySchema } from '@/lib/validations';
-import { formatCurrency } from '@/lib/format';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+} from "lucide-react";
+import { toast } from "sonner";
+import { customerEntrySchema } from "@/lib/validations";
+import { formatCurrency } from "@/lib/format";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 type ProductRow = {
   id: string;
@@ -31,7 +43,7 @@ type ProductRow = {
   sellingPrice: number;
   GSTPercentage: number;
   stockQuantity: number;
-  foodType: 'veg' | 'non-veg';
+  foodType: "veg" | "non-veg";
   isAvailable: boolean;
 };
 
@@ -49,7 +61,7 @@ type DraftInvoice = {
   _id: string;
   invoiceDraftId: string;
   sessionId: string;
-  invoiceStatus: 'draft' | 'active' | 'paid' | 'closed';
+  invoiceStatus: "draft" | "active" | "paid" | "closed";
   paymentMode?: string;
   customerId?: string;
   customerSnapshot?: {
@@ -76,7 +88,7 @@ type DraftInvoice = {
 type TableDetails = {
   id: string;
   tableName: string;
-  status: 'available' | 'occupied' | 'billed' | 'reserved';
+  status: "available" | "occupied" | "billed" | "reserved";
   capacity?: number;
 };
 
@@ -102,7 +114,6 @@ type CartItem = {
   productName: string;
   quantity: number;
   price: number;
-  gst: number;
   total: number;
 };
 
@@ -114,23 +125,28 @@ type CustomerForm = {
   specialNotes: string;
 };
 
-async function readApiPayload<T extends { error?: string }>(response: Response, fallbackMessage: string) {
-  const contentType = response.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) {
+async function readApiPayload<T extends { error?: string }>(
+  response: Response,
+  fallbackMessage: string,
+) {
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
     return (await response.json()) as T;
   }
 
   const bodyText = (await response.text()).trim();
   if (response.status === 401) {
-    throw new Error('Your session expired. Please sign in again and retry.');
+    throw new Error("Your session expired. Please sign in again and retry.");
   }
 
   if (response.status === 403) {
-    throw new Error('You are not allowed to perform this action.');
+    throw new Error("You are not allowed to perform this action.");
   }
 
-  if (bodyText.startsWith('<!DOCTYPE') || bodyText.startsWith('<html')) {
-    throw new Error(`${fallbackMessage}. The server returned an HTML page instead of JSON.`);
+  if (bodyText.startsWith("<!DOCTYPE") || bodyText.startsWith("<html")) {
+    throw new Error(
+      `${fallbackMessage}. The server returned an HTML page instead of JSON.`,
+    );
   }
 
   throw new Error(bodyText || fallbackMessage);
@@ -145,60 +161,68 @@ export function RestaurantBillingWorkspace({
   const router = useRouter();
   const didMountRef = useRef(false);
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
   const [cart, setCart] = useState<CartItem[]>(
     initialDraft?.items.map((item) => ({
       productId: item.productId,
       productName: item.productName,
       quantity: item.quantity,
       price: item.price,
-      gst: item.GSTPercentage,
       total: item.total,
     })) ?? [],
   );
   const [discount, setDiscount] = useState(initialDraft?.discount ?? 0);
-  const [notes, setNotes] = useState(initialDraft?.customerSnapshot?.specialNotes ?? '');
-  const [saving, setSaving] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [notes, setNotes] = useState(
+    initialDraft?.customerSnapshot?.specialNotes ?? "",
+  );
+  const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
   const [finalizing, setFinalizing] = useState(false);
   const [draftMeta, setDraftMeta] = useState({
-    id: initialDraft?._id ?? '',
-    invoiceDraftId: initialDraft?.invoiceDraftId ?? '',
-    sessionId: initialDraft?.sessionId ?? '',
-    invoiceStatus: initialDraft?.invoiceStatus ?? 'draft',
+    id: initialDraft?._id ?? "",
+    invoiceDraftId: initialDraft?.invoiceDraftId ?? "",
+    sessionId: initialDraft?.sessionId ?? "",
+    invoiceStatus: initialDraft?.invoiceStatus ?? "draft",
   });
   const [customerForm, setCustomerForm] = useState<CustomerForm>({
-    customerName: initialDraft?.customerSnapshot?.customerName ?? '',
-    mobileNumber: initialDraft?.customerSnapshot?.mobileNumber ?? '',
-    email: initialDraft?.customerSnapshot?.email ?? '',
-    numberOfGuests: initialDraft?.customerSnapshot?.numberOfGuests?.toString() ?? '',
-    specialNotes: initialDraft?.customerSnapshot?.specialNotes ?? '',
+    customerName: initialDraft?.customerSnapshot?.customerName ?? "",
+    mobileNumber: initialDraft?.customerSnapshot?.mobileNumber ?? "",
+    email: initialDraft?.customerSnapshot?.email ?? "",
+    numberOfGuests:
+      initialDraft?.customerSnapshot?.numberOfGuests?.toString() ?? "",
+    specialNotes: initialDraft?.customerSnapshot?.specialNotes ?? "",
   });
 
-  const isReadonly = initialDraft?.invoiceStatus === 'paid';
+  const isReadonly = initialDraft?.invoiceStatus === "paid";
   const liveSearch = useDeferredValue(searchTerm);
-  const categories = ['All', ...Array.from(new Set(products.map((product) => product.category)))];
+  const categories = [
+    "All",
+    ...Array.from(new Set(products.map((product) => product.category))),
+  ];
 
   const filteredProducts = products.filter((product) => {
     const normalized = liveSearch.toLowerCase();
     const matchesSearch =
       product.productName.toLowerCase().includes(normalized) ||
       product.category.toLowerCase().includes(normalized);
-    const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+    const matchesCategory =
+      selectedCategory === "All" || product.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
   const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
-  const GSTAmount = cart.reduce((sum, item) => sum + (item.total * item.gst) / 100, 0);
-  const grandTotal = Math.max(subtotal + GSTAmount - discount, 0);
+  const grandTotal = Math.max(subtotal - discount, 0);
 
-  const setCustomerField = <K extends keyof CustomerForm>(field: K, value: CustomerForm[K]) => {
+  const setCustomerField = <K extends keyof CustomerForm>(
+    field: K,
+    value: CustomerForm[K],
+  ) => {
     setCustomerForm((current) => ({ ...current, [field]: value }));
   };
 
   const addToCart = (product: ProductRow) => {
     if (!product.isAvailable || product.stockQuantity <= 0) {
-      toast.error('This item is unavailable.');
+      toast.error("This item is unavailable.");
       return;
     }
 
@@ -206,7 +230,7 @@ export function RestaurantBillingWorkspace({
       const existing = current.find((item) => item.productId === product.id);
       if (existing) {
         if (existing.quantity >= product.stockQuantity) {
-          toast.error('No more stock is available for this item.');
+          toast.error("No more stock is available for this item.");
           return current;
         }
 
@@ -228,7 +252,6 @@ export function RestaurantBillingWorkspace({
           productName: product.productName,
           quantity: 1,
           price: product.sellingPrice,
-          gst: product.GSTPercentage,
           total: product.sellingPrice,
         },
       ];
@@ -237,20 +260,26 @@ export function RestaurantBillingWorkspace({
 
   const updateQuantity = (productId: string, nextQuantity: number) => {
     if (nextQuantity <= 0) {
-      setCart((current) => current.filter((item) => item.productId !== productId));
+      setCart((current) =>
+        current.filter((item) => item.productId !== productId),
+      );
       return;
     }
 
     const product = products.find((item) => item.id === productId);
     if (!product || nextQuantity > product.stockQuantity) {
-      toast.error('Insufficient stock for this item.');
+      toast.error("Insufficient stock for this item.");
       return;
     }
 
     setCart((current) =>
       current.map((item) =>
         item.productId === productId
-          ? { ...item, quantity: nextQuantity, total: nextQuantity * item.price }
+          ? {
+              ...item,
+              quantity: nextQuantity,
+              total: nextQuantity * item.price,
+            }
           : item,
       ),
     );
@@ -260,9 +289,9 @@ export function RestaurantBillingWorkspace({
     setCustomerForm({
       customerName: customer.name,
       mobileNumber: customer.mobile,
-      email: customer.email ?? '',
-      numberOfGuests: customer.numberOfGuests?.toString() ?? '',
-      specialNotes: customer.specialNotes ?? '',
+      email: customer.email ?? "",
+      numberOfGuests: customer.numberOfGuests?.toString() ?? "",
+      specialNotes: customer.specialNotes ?? "",
     });
   };
 
@@ -271,14 +300,14 @@ export function RestaurantBillingWorkspace({
       return null;
     }
 
-    setSaving('saving');
+    setSaving("saving");
 
     try {
       const response = await fetch(`/api/tables/${table.id}/draft`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
         body: JSON.stringify({
           tableId: table.id,
@@ -306,9 +335,12 @@ export function RestaurantBillingWorkspace({
         }),
       });
 
-      const payload = await readApiPayload<DraftRoutePayload>(response, 'Unable to save draft');
+      const payload = await readApiPayload<DraftRoutePayload>(
+        response,
+        "Unable to save draft",
+      );
       if (!response.ok || !payload.draft) {
-        throw new Error(payload.error ?? 'Unable to save draft');
+        throw new Error(payload.error ?? "Unable to save draft");
       }
 
       setDraftMeta({
@@ -317,12 +349,14 @@ export function RestaurantBillingWorkspace({
         sessionId: payload.draft.sessionId,
         invoiceStatus: payload.draft.invoiceStatus,
       });
-      setSaving('saved');
+      setSaving("saved");
       return payload.draft;
     } catch (error) {
       console.error(error);
-      setSaving('idle');
-      toast.error(error instanceof Error ? error.message : 'Unable to save draft');
+      setSaving("idle");
+      toast.error(
+        error instanceof Error ? error.message : "Unable to save draft",
+      );
       return null;
     }
   }, [
@@ -339,16 +373,19 @@ export function RestaurantBillingWorkspace({
 
   const fetchLatestDraft = useCallback(async () => {
     const response = await fetch(`/api/tables/${table.id}/draft`, {
-      method: 'GET',
-      cache: 'no-store',
+      method: "GET",
+      cache: "no-store",
       headers: {
-        Accept: 'application/json',
+        Accept: "application/json",
       },
     });
 
-    const payload = await readApiPayload<DraftRoutePayload>(response, 'Unable to load latest draft');
+    const payload = await readApiPayload<DraftRoutePayload>(
+      response,
+      "Unable to load latest draft",
+    );
     if (!response.ok) {
-      throw new Error(payload.error ?? 'Unable to load latest draft');
+      throw new Error(payload.error ?? "Unable to load latest draft");
     }
 
     if (payload.draft) {
@@ -382,22 +419,27 @@ export function RestaurantBillingWorkspace({
     };
   }, [cart, customerForm, discount, isReadonly, notes, persistDraft]);
 
-  const finalizeInvoice = async (paymentMode: 'cash' | 'upi' | 'card') => {
+  const finalizeInvoice = async (paymentMode: "cash" | "upi" | "card") => {
     const parsedCustomer = customerEntrySchema.safeParse({
       customerName: customerForm.customerName,
       mobileNumber: customerForm.mobileNumber,
       email: customerForm.email || undefined,
-      numberOfGuests: customerForm.numberOfGuests ? Number(customerForm.numberOfGuests) : undefined,
+      numberOfGuests: customerForm.numberOfGuests
+        ? Number(customerForm.numberOfGuests)
+        : undefined,
       specialNotes: customerForm.specialNotes || undefined,
     });
 
     if (!parsedCustomer.success) {
-      toast.error(parsedCustomer.error.issues[0]?.message ?? 'Customer details are required.');
+      toast.error(
+        parsedCustomer.error.issues[0]?.message ??
+          "Customer details are required.",
+      );
       return;
     }
 
     if (!cart.length) {
-      toast.error('Add at least one menu item before billing.');
+      toast.error("Add at least one menu item before billing.");
       return;
     }
 
@@ -406,7 +448,9 @@ export function RestaurantBillingWorkspace({
     try {
       const savedDraft = await persistDraft();
       const latestDraft =
-        savedDraft || draftMeta.invoiceDraftId || initialDraft?.invoiceDraftId ? null : await fetchLatestDraft();
+        savedDraft || draftMeta.invoiceDraftId || initialDraft?.invoiceDraftId
+          ? null
+          : await fetchLatestDraft();
       const draftId =
         savedDraft?.invoiceDraftId ||
         latestDraft?.invoiceDraftId ||
@@ -414,14 +458,16 @@ export function RestaurantBillingWorkspace({
         initialDraft?.invoiceDraftId;
 
       if (!draftId) {
-        throw new Error('Draft bill was not created yet. Please save the order once and try again.');
+        throw new Error(
+          "Draft bill was not created yet. Please save the order once and try again.",
+        );
       }
 
-      const response = await fetch('/api/invoices', {
-        method: 'POST',
+      const response = await fetch("/api/invoices", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
         body: JSON.stringify({
           draftId,
@@ -430,18 +476,23 @@ export function RestaurantBillingWorkspace({
         }),
       });
 
-      const payload = await readApiPayload<FinalizeInvoicePayload>(response, 'Unable to finalize invoice');
+      const payload = await readApiPayload<FinalizeInvoicePayload>(
+        response,
+        "Unable to finalize invoice",
+      );
 
       if (!response.ok || !payload.invoice) {
-        throw new Error(payload.error ?? 'Unable to finalize invoice');
+        throw new Error(payload.error ?? "Unable to finalize invoice");
       }
 
-      toast.success('Invoice finalized successfully.');
+      toast.success("Invoice finalized successfully.");
       router.push(`/dashboard/invoices/${payload.invoice._id}`);
       router.refresh();
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : 'Unable to finalize invoice');
+      toast.error(
+        error instanceof Error ? error.message : "Unable to finalize invoice",
+      );
     } finally {
       setFinalizing(false);
     }
@@ -452,21 +503,30 @@ export function RestaurantBillingWorkspace({
       <Card>
         <CardHeader>
           <CardTitle>{table.tableName} is already billed</CardTitle>
-          <CardDescription>This table has a paid invoice waiting for print or closure.</CardDescription>
+          <CardDescription>
+            This table has a paid invoice waiting for print or closure.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="rounded-[24px] border border-border bg-white/68 px-4 py-4">
             <p className="font-semibold text-foreground">Draft ID</p>
-            <p className="text-sm text-muted-foreground">{initialDraft.invoiceDraftId}</p>
+            <p className="text-sm text-muted-foreground">
+              {initialDraft.invoiceDraftId}
+            </p>
             <p className="mt-3 font-semibold text-foreground">Customer</p>
             <p className="text-sm text-muted-foreground">
-              {initialDraft.customerSnapshot?.customerName || 'Walk-in customer'}
+              {initialDraft.customerSnapshot?.customerName ||
+                "Walk-in customer"}
             </p>
             <p className="mt-3 font-semibold text-foreground">Final amount</p>
-            <p className="text-sm text-muted-foreground">{formatCurrency(initialDraft.grandTotal)}</p>
+            <p className="text-sm text-muted-foreground">
+              {formatCurrency(initialDraft.grandTotal)}
+            </p>
           </div>
           <Button asChild>
-            <Link href={`/dashboard/invoices/${initialDraft._id}`}>Open exact invoice</Link>
+            <Link href={`/dashboard/invoices/${initialDraft._id}`}>
+              Open exact invoice
+            </Link>
           </Button>
         </CardContent>
       </Card>
@@ -480,7 +540,8 @@ export function RestaurantBillingWorkspace({
           <CardHeader>
             <CardTitle>{table.tableName} menu selection</CardTitle>
             <CardDescription>
-              Select items for this table. Drafts auto-save and reopen on the same table.
+              Select items for this table. Drafts auto-save and reopen on the
+              same table.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -495,9 +556,13 @@ export function RestaurantBillingWorkspace({
                 />
               </div>
               <div className="rounded-2xl border border-border bg-white/68 px-4 py-3 text-sm text-muted-foreground">
-                Draft status:{' '}
+                Draft status:{" "}
                 <span className="font-semibold text-foreground">
-                  {saving === 'saving' ? 'saving' : saving === 'saved' ? 'saved' : 'ready'}
+                  {saving === "saving"
+                    ? "saving"
+                    : saving === "saved"
+                      ? "saved"
+                      : "ready"}
                 </span>
               </div>
             </div>
@@ -507,7 +572,9 @@ export function RestaurantBillingWorkspace({
                 <Button
                   key={category}
                   size="sm"
-                  variant={selectedCategory === category ? 'default' : 'outline'}
+                  variant={
+                    selectedCategory === category ? "default" : "outline"
+                  }
                   onClick={() => setSelectedCategory(category)}
                 >
                   {category}
@@ -526,19 +593,31 @@ export function RestaurantBillingWorkspace({
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-foreground">{product.productName}</p>
-                        <Badge variant={product.foodType === 'veg' ? 'outline' : 'secondary'}>
+                        <p className="font-semibold text-foreground">
+                          {product.productName}
+                        </p>
+                        <Badge
+                          variant={
+                            product.foodType === "veg" ? "outline" : "secondary"
+                          }
+                        >
                           {product.foodType}
                         </Badge>
-                        {!product.isAvailable ? <Badge variant="destructive">Unavailable</Badge> : null}
+                        {!product.isAvailable ? (
+                          <Badge variant="destructive">Unavailable</Badge>
+                        ) : null}
                       </div>
-                      <p className="text-sm text-muted-foreground">{product.category}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {product.category}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-foreground">
                         {formatCurrency(product.sellingPrice)}
                       </p>
-                      <p className="text-xs text-muted-foreground">Stock {product.stockQuantity}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Stock {product.stockQuantity}
+                      </p>
                     </div>
                   </div>
                 </button>
@@ -552,7 +631,9 @@ export function RestaurantBillingWorkspace({
         <Card>
           <CardHeader>
             <CardTitle>Live draft bill</CardTitle>
-            <CardDescription>Every line here belongs only to {table.tableName}.</CardDescription>
+            <CardDescription>
+              Every line here belongs only to {table.tableName}.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
@@ -568,18 +649,24 @@ export function RestaurantBillingWorkspace({
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <p className="font-semibold text-foreground">{item.productName}</p>
+                        <p className="font-semibold text-foreground">
+                          {item.productName}
+                        </p>
                         <p className="text-sm text-muted-foreground">
-                          {formatCurrency(item.price)} each - GST {item.gst}%
+                          {formatCurrency(item.price)} each
                         </p>
                       </div>
-                      <p className="font-semibold text-foreground">{formatCurrency(item.total)}</p>
+                      <p className="font-semibold text-foreground">
+                        {formatCurrency(item.total)}
+                      </p>
                     </div>
                     <div className="mt-4 flex items-center gap-2">
                       <Button
                         size="icon"
                         variant="outline"
-                        onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                        onClick={() =>
+                          updateQuantity(item.productId, item.quantity - 1)
+                        }
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
@@ -589,7 +676,9 @@ export function RestaurantBillingWorkspace({
                       <Button
                         size="icon"
                         variant="outline"
-                        onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                        onClick={() =>
+                          updateQuantity(item.productId, item.quantity + 1)
+                        }
                       >
                         <Plus className="h-4 w-4" />
                       </Button>
@@ -607,7 +696,9 @@ export function RestaurantBillingWorkspace({
                   type="number"
                   min={0}
                   value={discount}
-                  onChange={(event) => setDiscount(Number(event.target.value) || 0)}
+                  onChange={(event) =>
+                    setDiscount(Number(event.target.value) || 0)
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -624,15 +715,15 @@ export function RestaurantBillingWorkspace({
             <div className="rounded-[24px] border border-border bg-white/68 px-4 py-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Sub total</span>
-                <span className="font-semibold text-foreground">{formatCurrency(subtotal)}</span>
-              </div>
-              <div className="mt-2 flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">GST</span>
-                <span className="font-semibold text-foreground">{formatCurrency(GSTAmount)}</span>
+                <span className="font-semibold text-foreground">
+                  {formatCurrency(subtotal)}
+                </span>
               </div>
               <div className="mt-2 flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Discount</span>
-                <span className="font-semibold text-foreground">{formatCurrency(discount)}</span>
+                <span className="font-semibold text-foreground">
+                  {formatCurrency(discount)}
+                </span>
               </div>
               <div className="mt-3 border-t border-dashed border-border pt-3">
                 <div className="flex items-center justify-between text-lg font-semibold text-foreground">
@@ -648,7 +739,8 @@ export function RestaurantBillingWorkspace({
           <CardHeader>
             <CardTitle>Add new customer</CardTitle>
             <CardDescription>
-              This is the primary billing flow. Existing customer selection remains optional.
+              This is the primary billing flow. Existing customer selection
+              remains optional.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -665,8 +757,12 @@ export function RestaurantBillingWorkspace({
                       <UserRound className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="font-semibold text-foreground">{customer.name}</p>
-                      <p className="text-sm text-muted-foreground">{customer.mobile}</p>
+                      <p className="font-semibold text-foreground">
+                        {customer.name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {customer.mobile}
+                      </p>
                     </div>
                   </div>
                   <Badge variant="outline">Use</Badge>
@@ -680,7 +776,9 @@ export function RestaurantBillingWorkspace({
                 <Input
                   id="customerName"
                   value={customerForm.customerName}
-                  onChange={(event) => setCustomerField('customerName', event.target.value)}
+                  onChange={(event) =>
+                    setCustomerField("customerName", event.target.value)
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -688,7 +786,9 @@ export function RestaurantBillingWorkspace({
                 <Input
                   id="mobileNumber"
                   value={customerForm.mobileNumber}
-                  onChange={(event) => setCustomerField('mobileNumber', event.target.value)}
+                  onChange={(event) =>
+                    setCustomerField("mobileNumber", event.target.value)
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -697,7 +797,9 @@ export function RestaurantBillingWorkspace({
                   id="email"
                   type="email"
                   value={customerForm.email}
-                  onChange={(event) => setCustomerField('email', event.target.value)}
+                  onChange={(event) =>
+                    setCustomerField("email", event.target.value)
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -707,7 +809,9 @@ export function RestaurantBillingWorkspace({
                   type="number"
                   min={1}
                   value={customerForm.numberOfGuests}
-                  onChange={(event) => setCustomerField('numberOfGuests', event.target.value)}
+                  onChange={(event) =>
+                    setCustomerField("numberOfGuests", event.target.value)
+                  }
                 />
               </div>
             </div>
@@ -717,7 +821,9 @@ export function RestaurantBillingWorkspace({
               <Textarea
                 id="specialNotes"
                 value={customerForm.specialNotes}
-                onChange={(event) => setCustomerField('specialNotes', event.target.value)}
+                onChange={(event) =>
+                  setCustomerField("specialNotes", event.target.value)
+                }
               />
             </div>
           </CardContent>
@@ -727,20 +833,27 @@ export function RestaurantBillingWorkspace({
           <CardHeader>
             <CardTitle>Finalize payment</CardTitle>
             <CardDescription>
-              Draft ID {draftMeta.invoiceDraftId || 'pending'} - Session{' '}
-              {draftMeta.sessionId || 'pending'}
+              Draft ID {draftMeta.invoiceDraftId || "pending"} - Session{" "}
+              {draftMeta.sessionId || "pending"}
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2">
-            <Button onClick={() => void persistDraft()} variant="outline" disabled={saving === 'saving'}>
-              {saving === 'saving' ? (
+            <Button
+              onClick={() => void persistDraft()}
+              variant="outline"
+              disabled={saving === "saving"}
+            >
+              {saving === "saving" ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
               Save draft now
             </Button>
-            <Button onClick={() => void finalizeInvoice('cash')} disabled={finalizing}>
+            <Button
+              onClick={() => void finalizeInvoice("cash")}
+              disabled={finalizing}
+            >
               {finalizing ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -748,11 +861,19 @@ export function RestaurantBillingWorkspace({
               )}
               Cash payment
             </Button>
-            <Button onClick={() => void finalizeInvoice('upi')} variant="outline" disabled={finalizing}>
+            <Button
+              onClick={() => void finalizeInvoice("upi")}
+              variant="outline"
+              disabled={finalizing}
+            >
               <Smartphone className="mr-2 h-4 w-4" />
               UPI payment
             </Button>
-            <Button onClick={() => void finalizeInvoice('card')} variant="outline" disabled={finalizing}>
+            <Button
+              onClick={() => void finalizeInvoice("card")}
+              variant="outline"
+              disabled={finalizing}
+            >
               <CreditCard className="mr-2 h-4 w-4" />
               Card payment
             </Button>
