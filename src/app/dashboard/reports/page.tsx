@@ -2,7 +2,6 @@ import { ReportsCenter } from '@/components/reports-center';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { buildReportData } from '@/lib/reporting';
-import { getWorkspaceSummary } from '@/lib/dashboard-data';
 import { requireTenantUser } from '@/lib/server-auth';
 
 function formatDateInput(date: Date) {
@@ -17,10 +16,7 @@ export default async function ReportsPage() {
   from.setMonth(from.getMonth() - 1);
   from.setHours(0, 0, 0, 0);
 
-  const [workspace, initialReport] = await Promise.all([
-    getWorkspaceSummary(user),
-    buildReportData(user.tenantId, 'daily-sales', formatDateInput(from), formatDateInput(to)),
-  ]);
+  const initialReport = await buildReportData(user.tenantId, 'daily-sales', formatDateInput(from), formatDateInput(to));
 
   const pageSize = 10;
 
@@ -30,7 +26,6 @@ export default async function ReportsPage() {
         eyebrow="Reports"
         title="Operational and compliance reports"
         description=""
-        // badges={[workspace.tenantCode, workspace.gstin, workspace.businessName]}
       />
 
       {canViewReports ? (

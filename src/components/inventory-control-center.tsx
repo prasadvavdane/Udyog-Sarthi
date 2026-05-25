@@ -11,145 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency, formatNumber } from '@/lib/format';
+import type { getInventoryBootstrap } from '@/lib/inventory-service';
 
-type InventoryBootstrapPayload = {
-  dashboard: {
-    totalItems: number;
-    lowStockItems: number;
-    outOfStockItems: number;
-    stockValue: number;
-    expiringLots: number;
-    expiredLots: number;
-    movement: {
-      inwardQuantity: number;
-      inwardAmount: number;
-      outwardQuantity: number;
-      outwardAmount: number;
-    };
-    topConsumption: Array<{
-      inventoryItemId: string;
-      itemName: string;
-      quantity: number;
-      amount: number;
-    }>;
-  };
-  masters: {
-    categories: Array<{ id: string; name: string; description: string; isActive: boolean }>;
-    units: Array<{ id: string; name: string; code: string; precision: number; isActive: boolean }>;
-    suppliers: Array<{
-      id: string;
-      name: string;
-      contactPerson: string;
-      phone: string;
-      email: string;
-      gstin: string;
-      address: string;
-      notes: string;
-      isActive: boolean;
-    }>;
-    locations: Array<{ id: string; name: string; code: string; description: string; isPrimary: boolean; isActive: boolean }>;
-    items: Array<{
-      id: string;
-      itemName: string;
-      itemCode: string;
-      categoryId: string;
-      categoryName: string;
-      unitId: string;
-      unitName: string;
-      defaultSupplierId: string;
-      defaultSupplierName: string;
-      defaultLocationId: string;
-      defaultLocationName: string;
-      reorderLevel: number;
-      reorderQuantity: number;
-      currentStock: number;
-      averageCost: number;
-      lastPurchaseCost: number;
-      expiryTracked: boolean;
-      batchTracked: boolean;
-      allowNegativeStock: boolean;
-      isActive: boolean;
-      notes: string;
-      lowStock: boolean;
-    }>;
-  };
-  products: Array<{ id: string; productName: string; category: string }>;
-  recipes: Array<{
-    id: string;
-    productId: string;
-    productName: string;
-    productCategory: string;
-    yieldQuantity: number;
-    notes: string;
-    isActive: boolean;
-    estimatedCost: number;
-    lines: Array<{
-      inventoryItemId: string;
-      itemName: string;
-      itemCode: string;
-      unitName: string;
-      quantity: number;
-      wastagePercent: number;
-      lineCost: number;
-      notes: string;
-    }>;
-  }>;
-  recentTransactions: Array<{
-    id: string;
-    movementNumber: string;
-    movementDate: string | Date;
-    direction: string;
-    movementType: string;
-    status: string;
-    reason: string;
-    notes: string;
-    supplierId: string;
-    supplierName: string;
-    totalQuantity: number;
-    totalAmount: number;
-    lines: Array<{
-      inventoryItemId: string;
-      itemName: string;
-      unitId: string;
-      unitName: string;
-      locationId: string;
-      locationName: string;
-      quantity: number;
-      unitCost: number;
-      totalAmount: number;
-      batchNumber: string;
-      lotNumber: string;
-      invoiceNumber: string;
-      reason: string;
-    }>;
-  }>;
-  expiringLots: Array<{
-    id: string;
-    itemName: string;
-    batchNumber: string;
-    lotNumber: string;
-    expiryDate: string | Date;
-    quantityAvailable: number;
-    locationName: string;
-  }>;
-  expiredLots: Array<{
-    id: string;
-    itemName: string;
-    batchNumber: string;
-    lotNumber: string;
-    expiryDate: string | Date;
-    quantityAvailable: number;
-    locationName: string;
-  }>;
-  recentAudits: Array<{
-    id: string;
-    entityType: string;
-    action: string;
-    description: string;
-    createdAt: string | Date;
-  }>;
-  permissions: string[];
-};
+export type InventoryBootstrapPayload = Awaited<ReturnType<typeof getInventoryBootstrap>>;
 
 type SectionKey = 'overview' | 'transactions' | 'masters' | 'recipes' | 'reports';
 type MasterResource = 'category' | 'unit' | 'supplier' | 'location' | 'item';
@@ -197,8 +61,19 @@ const reportOptions: Array<{ value: InventoryReportType; label: string; descript
   { value: 'inventory-movement', label: 'Inventory movement', description: 'Date-wise inward versus outward.' },
 ];
 
-function formatDate(value: string | Date | undefined) {
+function formatDate(value: unknown) {
   if (!value) {
+    return '-';
+  }
+
+  let parsed: Date | null = null;
+  if (value instanceof Date) {
+    parsed = value;
+  } else if (typeof value === 'string' || typeof value === 'number') {
+    parsed = new Date(value);
+  }
+
+  if (!parsed || Number.isNaN(parsed.getTime())) {
     return '-';
   }
 
@@ -206,7 +81,7 @@ function formatDate(value: string | Date | undefined) {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  }).format(new Date(value));
+  }).format(parsed);
 }
 
 function todayDateInput() {
@@ -217,6 +92,21 @@ function monthBackDateInput() {
   const date = new Date();
   date.setMonth(date.getMonth() - 1);
   return date.toISOString().slice(0, 10);
+}
+
+function toDateInput(value: unknown) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString().slice(0, 10);
+    }
+  }
+
+  return todayDateInput();
 }
 
 async function readJson(response: Response) {
@@ -650,7 +540,7 @@ export function InventoryControlCenter({ initialData }: InventoryControlCenterPr
     setActiveSection('transactions');
     setEditingTransactionId(transaction.id);
     setTransactionForm({
-      movementDate: new Date(transaction.movementDate).toISOString().slice(0, 10),
+      movementDate: toDateInput(transaction.movementDate),
       direction: transaction.direction === 'out' ? 'out' : 'in',
       movementType: transaction.movementType,
       reason: transaction.reason,
@@ -1616,7 +1506,7 @@ export function InventoryControlCenter({ initialData }: InventoryControlCenterPr
                           <div>
                             <p className="font-medium text-foreground">{line.itemName}</p>
                             <p className="text-sm text-muted-foreground">
-                              {formatNumber(line.quantity)} {line.unitName} · Wastage {formatNumber(line.wastagePercent)}%
+                              {formatNumber(line.quantity)} {line.unitName} · Wastage {formatNumber(line.wastagePercent ?? 0)}%
                             </p>
                           </div>
                           <p className="font-medium text-foreground">{formatCurrency(line.lineCost)}</p>

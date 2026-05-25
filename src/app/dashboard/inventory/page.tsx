@@ -22,5 +22,5 @@ export default async function InventoryPage() {
 
   const bootstrap = await getInventoryBootstrap(user);
 
-  return <InventoryControlCenter initialData={bootstrap as any} />;
+  return <InventoryControlCenter initialData={bootstrap} />;
 }

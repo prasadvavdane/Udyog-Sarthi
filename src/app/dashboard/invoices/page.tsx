@@ -5,24 +5,19 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
-import { getWorkspaceSummary } from '@/lib/dashboard-data';
 import { getRestaurantInvoiceHistory } from '@/lib/restaurant-data';
 import { serializeInvoice } from '@/lib/serializers';
 import { requireTenantUser } from '@/lib/server-auth';
 
 export default async function InvoicesPage() {
   const user = await requireTenantUser();
-  const [workspace, invoices] = await Promise.all([
-    getWorkspaceSummary(user),
-    getRestaurantInvoiceHistory(user),
-  ]);
+  const invoices = await getRestaurantInvoiceHistory(user);
 
   const serializedInvoices = invoices.map(serializeInvoice);
   const paidInvoices = serializedInvoices.filter((invoice) => invoice.paymentStatus === 'paid').length;
   const pendingAmount = serializedInvoices
     .filter((invoice) => invoice.paymentStatus !== 'paid')
     .reduce((sum, invoice) => sum + invoice.grandTotal, 0);
-  const totalRevenue = serializedInvoices.reduce((sum, invoice) => sum + invoice.grandTotal, 0);
 
   return (
     <div className="page-grid">
@@ -30,7 +25,6 @@ export default async function InvoicesPage() {
         eyebrow="Invoice history"
         title="Exact bill reopen and print history"
         description=""
-        // badges={[workspace.tenantCode, `${formatNumber(serializedInvoices.length)} invoices`, `${formatCurrency(totalRevenue)} revenue`]}
         actions={
           <Button asChild variant="outline">
             <Link href="/dashboard/reports">

@@ -4,7 +4,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import Product from '@/models/Product';
 import dbConnect from '@/lib/mongodb';
 import { formatNumber } from '@/lib/format';
-import { getWorkspaceSummary } from '@/lib/dashboard-data';
 import { serializeProduct } from '@/lib/serializers';
 import { requireTenantUser } from '@/lib/server-auth';
 
@@ -13,10 +12,7 @@ export default async function ProductsPage() {
   const canManage = ['business-admin', 'super-admin'].includes(user.role);
 
   await dbConnect();
-  const [workspace, products] = await Promise.all([
-    getWorkspaceSummary(user),
-    Product.find({ tenantId: user.tenantId }).sort({ updatedAt: -1 }),
-  ]);
+  const products = await Product.find({ tenantId: user.tenantId }).sort({ updatedAt: -1 });
 
   const serializedProducts = products.map(serializeProduct);
   const inStock = serializedProducts.filter((product) => product.stockQuantity > product.reorderLevel).length;
@@ -31,11 +27,6 @@ export default async function ProductsPage() {
         eyebrow="Menu master"
         title="Products and kitchen stock"
         description=""
-        // badges={[
-        //   workspace.tenantCode,
-        //   `${formatNumber(serializedProducts.length)} items`,
-        //   `${formatNumber(lowStock)} low stock`,
-        // ]}
       />
 
       <div className="grid min-w-0 gap-4 md:grid-cols-3">
