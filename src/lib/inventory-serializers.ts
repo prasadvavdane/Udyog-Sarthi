@@ -26,6 +26,39 @@ function normalizeBoolean(value: unknown, fallback = false) {
   return typeof value === 'boolean' ? value : fallback;
 }
 
+function normalizeSerializableValue(value: unknown): unknown {
+  if (value == null) {
+    return value;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? undefined : value.toISOString();
+  }
+
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeSerializableValue(entry));
+  }
+
+  if (typeof value === 'object') {
+    const constructorName = value.constructor?.name;
+    if (constructorName === 'ObjectId' || constructorName === 'ObjectID') {
+      return value.toString();
+    }
+
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .map(([key, entry]) => [key, normalizeSerializableValue(entry)] as const)
+        .filter(([, entry]) => entry !== undefined),
+    );
+  }
+
+  return String(value);
+}
+
 export function serializeInventoryCategory(category: Record<string, unknown>) {
   return {
     id: normalizeId(category._id ?? category.id),
@@ -33,8 +66,8 @@ export function serializeInventoryCategory(category: Record<string, unknown>) {
     name: normalizeString(category.name),
     description: normalizeString(category.description),
     isActive: normalizeBoolean(category.isActive, true),
-    createdAt: category.createdAt,
-    updatedAt: category.updatedAt,
+    createdAt: normalizeSerializableValue(category.createdAt),
+    updatedAt: normalizeSerializableValue(category.updatedAt),
   };
 }
 
@@ -46,8 +79,8 @@ export function serializeInventoryUnit(unit: Record<string, unknown>) {
     code: normalizeString(unit.code),
     precision: normalizeNumber(unit.precision, 2),
     isActive: normalizeBoolean(unit.isActive, true),
-    createdAt: unit.createdAt,
-    updatedAt: unit.updatedAt,
+    createdAt: normalizeSerializableValue(unit.createdAt),
+    updatedAt: normalizeSerializableValue(unit.updatedAt),
   };
 }
 
@@ -63,8 +96,8 @@ export function serializeInventorySupplier(supplier: Record<string, unknown>) {
     address: normalizeString(supplier.address),
     notes: normalizeString(supplier.notes),
     isActive: normalizeBoolean(supplier.isActive, true),
-    createdAt: supplier.createdAt,
-    updatedAt: supplier.updatedAt,
+    createdAt: normalizeSerializableValue(supplier.createdAt),
+    updatedAt: normalizeSerializableValue(supplier.updatedAt),
   };
 }
 
@@ -77,8 +110,8 @@ export function serializeInventoryLocation(location: Record<string, unknown>) {
     description: normalizeString(location.description),
     isPrimary: normalizeBoolean(location.isPrimary),
     isActive: normalizeBoolean(location.isActive, true),
-    createdAt: location.createdAt,
-    updatedAt: location.updatedAt,
+    createdAt: normalizeSerializableValue(location.createdAt),
+    updatedAt: normalizeSerializableValue(location.updatedAt),
   };
 }
 
@@ -112,15 +145,15 @@ export function serializeInventoryItem(item: Record<string, unknown>) {
     stockByLocation,
     averageCost: normalizeNumber(item.averageCost),
     lastPurchaseCost: normalizeNumber(item.lastPurchaseCost),
-    lastPurchaseDate: item.lastPurchaseDate,
+    lastPurchaseDate: normalizeSerializableValue(item.lastPurchaseDate),
     expiryTracked: normalizeBoolean(item.expiryTracked),
     batchTracked: normalizeBoolean(item.batchTracked, true),
     allowNegativeStock: normalizeBoolean(item.allowNegativeStock),
     isActive: normalizeBoolean(item.isActive, true),
     notes: normalizeString(item.notes),
     lowStock: currentStock <= reorderLevel,
-    createdAt: item.createdAt,
-    updatedAt: item.updatedAt,
+    createdAt: normalizeSerializableValue(item.createdAt),
+    updatedAt: normalizeSerializableValue(item.updatedAt),
   };
 }
 
@@ -134,16 +167,16 @@ export function serializeInventoryLot(lot: Record<string, unknown>) {
     transactionId: normalizeId(lot.transactionId),
     batchNumber: normalizeString(lot.batchNumber),
     lotNumber: normalizeString(lot.lotNumber),
-    expiryDate: lot.expiryDate,
-    purchaseDate: lot.purchaseDate,
+    expiryDate: normalizeSerializableValue(lot.expiryDate),
+    purchaseDate: normalizeSerializableValue(lot.purchaseDate),
     invoiceNumber: normalizeString(lot.invoiceNumber),
     unitCost: normalizeNumber(lot.unitCost),
     totalAmount: normalizeNumber(lot.totalAmount),
     quantityReceived: normalizeNumber(lot.quantityReceived),
     quantityAvailable: normalizeNumber(lot.quantityAvailable),
     status: normalizeString(lot.status, 'open'),
-    createdAt: lot.createdAt,
-    updatedAt: lot.updatedAt,
+    createdAt: normalizeSerializableValue(lot.createdAt),
+    updatedAt: normalizeSerializableValue(lot.updatedAt),
   };
 }
 
@@ -152,7 +185,7 @@ export function serializeInventoryTransaction(transaction: Record<string, unknow
     id: normalizeId(transaction._id ?? transaction.id),
     _id: normalizeId(transaction._id ?? transaction.id),
     movementNumber: normalizeString(transaction.movementNumber),
-    movementDate: transaction.movementDate,
+    movementDate: normalizeSerializableValue(transaction.movementDate),
     direction: normalizeString(transaction.direction, 'in'),
     movementType: normalizeString(transaction.movementType),
     status: normalizeString(transaction.status, 'posted'),
@@ -166,9 +199,9 @@ export function serializeInventoryTransaction(transaction: Record<string, unknow
     referenceId: normalizeString(transaction.referenceId),
     relatedTransactionId: normalizeId(transaction.relatedTransactionId),
     approvedBy: normalizeId(transaction.approvedBy),
-    approvedAt: transaction.approvedAt,
+    approvedAt: normalizeSerializableValue(transaction.approvedAt),
     cancelledBy: normalizeId(transaction.cancelledBy),
-    cancelledAt: transaction.cancelledAt,
+    cancelledAt: normalizeSerializableValue(transaction.cancelledAt),
     cancelReason: normalizeString(transaction.cancelReason),
     totalQuantity: normalizeNumber(transaction.totalQuantity),
     totalAmount: normalizeNumber(transaction.totalAmount),
@@ -186,8 +219,8 @@ export function serializeInventoryTransaction(transaction: Record<string, unknow
             totalAmount: normalizeNumber(line.totalAmount),
             batchNumber: normalizeString(line.batchNumber),
             lotNumber: normalizeString(line.lotNumber),
-            expiryDate: line.expiryDate,
-            purchaseDate: line.purchaseDate,
+            expiryDate: normalizeSerializableValue(line.expiryDate),
+            purchaseDate: normalizeSerializableValue(line.purchaseDate),
             invoiceNumber: normalizeString(line.invoiceNumber),
             reason: normalizeString(line.reason),
             productId: normalizeId(line.productId),
@@ -201,15 +234,15 @@ export function serializeInventoryTransaction(transaction: Record<string, unknow
                     batchNumber: normalizeString(allocation.batchNumber),
                     quantity: normalizeNumber(allocation.quantity),
                     unitCost: normalizeNumber(allocation.unitCost),
-                    expiryDate: allocation.expiryDate,
+                    expiryDate: normalizeSerializableValue(allocation.expiryDate),
                   };
                 })
               : [],
           };
         })
       : [],
-    createdAt: transaction.createdAt,
-    updatedAt: transaction.updatedAt,
+    createdAt: normalizeSerializableValue(transaction.createdAt),
+    updatedAt: normalizeSerializableValue(transaction.updatedAt),
   };
 }
 
@@ -233,8 +266,8 @@ export function serializeInventoryRecipe(recipe: Record<string, unknown>) {
           };
         })
       : [],
-    createdAt: recipe.createdAt,
-    updatedAt: recipe.updatedAt,
+    createdAt: normalizeSerializableValue(recipe.createdAt),
+    updatedAt: normalizeSerializableValue(recipe.updatedAt),
   };
 }
 
@@ -246,10 +279,16 @@ export function serializeInventoryAuditLog(entry: Record<string, unknown>) {
     entityId: normalizeId(entry.entityId),
     action: normalizeString(entry.action),
     description: normalizeString(entry.description),
-    before: typeof entry.before === 'object' && entry.before !== null ? entry.before : undefined,
-    after: typeof entry.after === 'object' && entry.after !== null ? entry.after : undefined,
+    before:
+      typeof entry.before === 'object' && entry.before !== null
+        ? (normalizeSerializableValue(entry.before) as Record<string, unknown>)
+        : undefined,
+    after:
+      typeof entry.after === 'object' && entry.after !== null
+        ? (normalizeSerializableValue(entry.after) as Record<string, unknown>)
+        : undefined,
     referenceId: normalizeString(entry.referenceId),
-    createdAt: entry.createdAt,
-    updatedAt: entry.updatedAt,
+    createdAt: normalizeSerializableValue(entry.createdAt),
+    updatedAt: normalizeSerializableValue(entry.updatedAt),
   };
 }

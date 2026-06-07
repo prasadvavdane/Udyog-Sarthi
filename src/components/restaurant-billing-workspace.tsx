@@ -172,6 +172,15 @@ export function RestaurantBillingWorkspace({
       total: item.total,
     })) ?? [],
   );
+  const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>(
+    () =>
+      Object.fromEntries(
+        (initialDraft?.items ?? []).map((item) => [
+          item.productId,
+          String(item.quantity),
+        ]),
+      ),
+  );
   const [discount, setDiscount] = useState(initialDraft?.discount ?? 0);
   const [notes, setNotes] = useState(
     initialDraft?.customerSnapshot?.specialNotes ?? "",
@@ -263,13 +272,13 @@ export function RestaurantBillingWorkspace({
       setCart((current) =>
         current.filter((item) => item.productId !== productId),
       );
-      return;
+      return true;
     }
 
     const product = products.find((item) => item.id === productId);
     if (!product || nextQuantity > product.stockQuantity) {
       toast.error("Insufficient stock for this item.");
-      return;
+      return false;
     }
 
     setCart((current) =>
@@ -283,6 +292,63 @@ export function RestaurantBillingWorkspace({
           : item,
       ),
     );
+    return true;
+  };
+
+  useEffect(() => {
+    setQuantityInputs(
+      Object.fromEntries(
+        cart.map((item) => [item.productId, String(item.quantity)]),
+      ),
+    );
+  }, [cart]);
+
+  const setQuantityInput = (productId: string, nextValue: string) => {
+    if (!/^\d*$/.test(nextValue)) {
+      return;
+    }
+
+    setQuantityInputs((current) => ({
+      ...current,
+      [productId]: nextValue,
+    }));
+  };
+
+  const resetQuantityInput = (productId: string, quantity: number) => {
+    setQuantityInputs((current) => ({
+      ...current,
+      [productId]: String(quantity),
+    }));
+  };
+
+  const commitQuantityInput = (productId: string, rawValue?: string) => {
+    const cartItem = cart.find((item) => item.productId === productId);
+    if (!cartItem) {
+      return;
+    }
+
+    const nextValue =
+      rawValue ?? quantityInputs[productId] ?? String(cartItem.quantity);
+    if (!nextValue) {
+      resetQuantityInput(productId, cartItem.quantity);
+      return;
+    }
+
+    const parsedQuantity = Number.parseInt(nextValue, 10);
+    if (!Number.isFinite(parsedQuantity)) {
+      resetQuantityInput(productId, cartItem.quantity);
+      return;
+    }
+
+    if (parsedQuantity === cartItem.quantity) {
+      resetQuantityInput(productId, cartItem.quantity);
+      return;
+    }
+
+    const didUpdate = updateQuantity(productId, parsedQuantity);
+    if (!didUpdate) {
+      resetQuantityInput(productId, cartItem.quantity);
+    }
   };
 
   const fillExistingCustomer = (customer: CustomerRow) => {
@@ -670,9 +736,41 @@ export function RestaurantBillingWorkspace({
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
-                      <div className="min-w-12 rounded-2xl border border-border bg-white/90 px-4 py-2 text-center font-semibold text-foreground">
-                        {item.quantity}
-                      </div>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={
+                          quantityInputs[item.productId] ?? String(item.quantity)
+                        }
+                        onChange={(event) =>
+                          setQuantityInput(item.productId, event.target.value)
+                        }
+                        onBlur={(event) =>
+                          commitQuantityInput(
+                            item.productId,
+                            event.currentTarget.value,
+                          )
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            commitQuantityInput(
+                              item.productId,
+                              event.currentTarget.value,
+                            );
+                            return;
+                          }
+
+                          if (event.key === "Escape") {
+                            resetQuantityInput(item.productId, item.quantity);
+                            event.currentTarget.value = String(item.quantity);
+                            event.currentTarget.blur();
+                          }
+                        }}
+                        className="h-11 w-16 px-2 text-center font-semibold"
+                        aria-label={`${item.productName} quantity`}
+                      />
                       <Button
                         size="icon"
                         variant="outline"

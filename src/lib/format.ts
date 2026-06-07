@@ -6,6 +6,10 @@ export function formatCurrency(value: number) {
   }).format(value);
 }
 
+export function formatReceiptCurrency(value: number) {
+  return `Rs ${Number(value).toFixed(2)}`;
+}
+
 export function formatNumber(value: number) {
   return new Intl.NumberFormat('en-IN').format(value);
 }

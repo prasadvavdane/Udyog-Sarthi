@@ -11,8 +11,8 @@ const colors = ['#127369', '#f59f42', '#326b85', '#d85e48'];
 
 export function PaymentModeChart({ data }: PaymentModeChartProps) {
   return (
-    <div className="h-[260px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-[260px] w-full min-w-0">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 360, height: 260 }}>
         <PieChart>
           <Pie data={data} dataKey="value" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={4} stroke="transparent">
             {data.map((entry, index) => (

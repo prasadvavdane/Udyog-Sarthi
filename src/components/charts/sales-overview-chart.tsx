@@ -9,8 +9,8 @@ interface SalesOverviewChartProps {
 
 export function SalesOverviewChart({ data }: SalesOverviewChartProps) {
   return (
-    <div className="h-[280px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-[280px] w-full min-w-0">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 720, height: 280 }}>
         <AreaChart data={data} margin={{ left: 0, right: 12, top: 6, bottom: 0 }}>
           <defs>
             <linearGradient id="salesFill" x1="0" y1="0" x2="0" y2="1">
