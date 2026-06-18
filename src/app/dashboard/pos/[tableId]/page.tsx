@@ -5,7 +5,7 @@ import { RestaurantBillingWorkspace } from '@/components/restaurant-billing-work
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { getWorkspaceSummary } from '@/lib/dashboard-data';
-import { getRestaurantCustomers, getRestaurantProducts, getTableById, getTableDraftInvoice } from '@/lib/restaurant-data';
+import { getRestaurantCustomers, getRestaurantProducts, getTableByRouteKey, getTableDraftInvoice } from '@/lib/restaurant-data';
 import { serializeCustomer, serializeInvoice, serializeProduct, serializeTable } from '@/lib/serializers';
 import { requireTenantUser } from '@/lib/server-auth';
 
@@ -23,18 +23,19 @@ export default async function TableBillingPage({ params }: TableBillingPageProps
 
   const { tableId } = await params;
 
-  const [table, draft, products, customers] = await Promise.all([
-    getTableById(user, tableId),
-    getTableDraftInvoice(user, tableId),
-    getRestaurantProducts(user),
-    getRestaurantCustomers(user),
-  ]);
+  const table = await getTableByRouteKey(user, tableId);
 
   if (!table) {
     notFound();
   }
 
   const serializedTable = serializeTable(table);
+  const [draft, products, customers] = await Promise.all([
+    getTableDraftInvoice(user, serializedTable.id),
+    getRestaurantProducts(user),
+    getRestaurantCustomers(user),
+  ]);
+
   const serializedDraft = draft ? serializeInvoice(draft) : null;
   const serializedProducts = products.map(serializeProduct);
   const serializedCustomers = customers.map(serializeCustomer);

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { createTableRouteSegment } from '@/lib/restaurant-utils';
 
 type TableCard = {
   id: string;
@@ -227,7 +228,7 @@ export function RestaurantTableGrid({ initialTables, canManageTables }: Restaura
                 </div>
                 <div className="flex gap-2">
                   <Button asChild className="flex-1">
-                    <Link href={`/dashboard/pos/${table.id}`}>Open table</Link>
+                    <Link href={`/dashboard/pos/${createTableRouteSegment(table)}`}>Open table</Link>
                   </Button>
                   {canManageTables ? (
                     <Button type="button" variant="outline" onClick={() => void toggleReserved(table)}>

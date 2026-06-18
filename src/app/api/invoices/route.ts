@@ -139,7 +139,7 @@ export async function POST(request: Request) {
             {
               $inc: { stockQuantity: -item.quantity },
             },
-            { new: true },
+            { returnDocument: 'after' },
           );
 
           if (!product) {
@@ -187,7 +187,7 @@ export async function POST(request: Request) {
         inventoryCostTotal: Number(inventoryCostTotal.toFixed(2)),
         grossProfit: Number(grossProfit.toFixed(2)),
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (invoice.customerId) {

@@ -18,7 +18,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     const invoice = await Invoice.findOneAndUpdate(
       { _id: id, tenantId: auth.user.tenantId },
       { invoiceStatus: 'closed', closedAt: new Date() },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!invoice) {

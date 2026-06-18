@@ -14,6 +14,11 @@ type InvoicePdfContext = {
 };
 
 const DEFAULT_INVOICE_DELIVERY_EMAIL = 'prasadvavdane@gmail.com';
+const DEFAULT_GMAIL_SMTP_HOST = 'smtp.gmail.com';
+const DEFAULT_GMAIL_SMTP_PORT = 465;
+const SMTP_CONNECTION_TIMEOUT_MS = 8000;
+const SMTP_GREETING_TIMEOUT_MS = 8000;
+const SMTP_SOCKET_TIMEOUT_MS = 20000;
 
 export function getInvoiceDeliveryRecipient() {
   return process.env.INVOICE_DELIVERY_EMAIL?.trim() || DEFAULT_INVOICE_DELIVERY_EMAIL;
@@ -30,10 +35,53 @@ function getGmailSmtpCredentials() {
   return { user, pass };
 }
 
+function getGmailSmtpTransport(user: string, pass: string) {
+  const host = process.env.GMAIL_SMTP_HOST?.trim() || DEFAULT_GMAIL_SMTP_HOST;
+  const configuredPort = process.env.GMAIL_SMTP_PORT?.trim();
+  const port = configuredPort ? Number(configuredPort) : DEFAULT_GMAIL_SMTP_PORT;
+
+  if (!Number.isInteger(port) || port <= 0) {
+    throw new Error('Gmail SMTP port is invalid. Set GMAIL_SMTP_PORT to 587 or 465.');
+  }
+
+  const configuredSecure = process.env.GMAIL_SMTP_SECURE?.trim().toLowerCase();
+  const secure = configuredSecure
+    ? configuredSecure === 'true'
+    : port === 465;
+
+  return {
+    host,
+    port,
+    secure,
+    requireTLS: !secure,
+    connectionTimeout: SMTP_CONNECTION_TIMEOUT_MS,
+    greetingTimeout: SMTP_GREETING_TIMEOUT_MS,
+    socketTimeout: SMTP_SOCKET_TIMEOUT_MS,
+    auth: {
+      user,
+      pass,
+    },
+  };
+}
+
 function getMailFromValue(smtpUser: string, businessName: string) {
   const configuredName = process.env.GMAIL_SMTP_FROM_NAME?.trim();
   const displayName = configuredName || businessName || 'Billing SaaS';
   return `${displayName} <${smtpUser}>`;
+}
+
+function getInvoiceEmailErrorMessage(error: unknown, host: string, port: number) {
+  const message = error instanceof Error ? error.message : 'Failed to send invoice email';
+
+  if (/Connection timeout|ETIMEDOUT|ECONNREFUSED|ENETUNREACH|ESOCKET/i.test(message)) {
+    return `Unable to connect to Gmail SMTP at ${host}:${port}. Check network/firewall access or set GMAIL_SMTP_PORT to 465 with GMAIL_SMTP_SECURE=true, or 587 with GMAIL_SMTP_SECURE=false.`;
+  }
+
+  if (/EAUTH|Invalid login|Username and Password not accepted/i.test(message)) {
+    return 'Gmail rejected the SMTP login. Check GMAIL_SMTP_USER and the Gmail app password.';
+  }
+
+  return message;
 }
 
 export async function buildInvoicePdfContext(invoiceId: string, tenantId: string): Promise<InvoicePdfContext | null> {
@@ -89,35 +137,34 @@ export async function sendInvoicePdfEmail(input: {
   const { user, pass } = getGmailSmtpCredentials();
   const recipientEmail = getInvoiceDeliveryRecipient();
   const resolvedFileName = normalizePdfFileName(input.fileName, input.fileName);
+  const transport = getGmailSmtpTransport(user, pass);
 
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user,
-      pass,
-    },
-  });
+  try {
+    const transporter = nodemailer.createTransport(transport);
 
-  await transporter.sendMail({
-    from: getMailFromValue(user, input.settings.businessName),
-    to: recipientEmail,
-    subject: `Invoice ${input.invoice.invoiceNumber} from ${input.settings.businessName}`,
-    text: [
-      `Invoice Number: ${input.invoice.invoiceNumber}`,
-      `Business: ${input.settings.businessName}`,
-      `Customer: ${input.invoice.customerSnapshot?.customerName || 'Walk-in customer'}`,
-      `Total: ${input.invoice.grandTotal}`,
-      '',
-      'The invoice PDF is attached with this email.',
-    ].join('\n'),
-    attachments: [
-      {
-        filename: resolvedFileName,
-        content: Buffer.from(input.pdfBytes),
-        contentType: 'application/pdf',
-      },
-    ],
-  });
+    await transporter.sendMail({
+      from: getMailFromValue(user, input.settings.businessName),
+      to: recipientEmail,
+      subject: `Invoice ${input.invoice.invoiceNumber} from ${input.settings.businessName}`,
+      text: [
+        `Invoice Number: ${input.invoice.invoiceNumber}`,
+        `Business: ${input.settings.businessName}`,
+        `Customer: ${input.invoice.customerSnapshot?.customerName || 'Walk-in customer'}`,
+        `Total: ${input.invoice.grandTotal}`,
+        '',
+        'The invoice PDF is attached with this email.',
+      ].join('\n'),
+      attachments: [
+        {
+          filename: resolvedFileName,
+          content: Buffer.from(input.pdfBytes),
+          contentType: 'application/pdf',
+        },
+      ],
+    });
+  } catch (error) {
+    throw new Error(getInvoiceEmailErrorMessage(error, transport.host, transport.port));
+  }
 
   return {
     recipientEmail,

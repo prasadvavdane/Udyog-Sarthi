@@ -71,7 +71,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         barcode: identifiers.barcode,
         HSN_SAC: parsed.data.HSN_SAC,
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     return NextResponse.json({ product: serializeProduct(product) });

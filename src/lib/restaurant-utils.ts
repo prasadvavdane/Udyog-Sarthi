@@ -23,6 +23,25 @@ export function createDraftId(tableName: string) {
   return `DRF-${tableName.toUpperCase().replace(/\s+/g, "-")}-${Date.now()}`;
 }
 
+export function createTableRouteSlug(tableName: string) {
+  return tableName
+    .trim()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export function createTableRouteSegment(table: {
+  id?: string;
+  _id?: string;
+  tableName: string;
+}) {
+  const slug = createTableRouteSlug(table.tableName);
+  return slug || encodeURIComponent(table.id ?? table._id ?? "");
+}
+
 export function createInvoiceNumber(prefix: string) {
   const now = new Date();
   const yyyy = now.getFullYear();

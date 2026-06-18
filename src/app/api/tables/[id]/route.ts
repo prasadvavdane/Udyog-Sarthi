@@ -30,7 +30,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         notes: parsed.data.notes || undefined,
         isActive: parsed.data.isActive,
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!table) {
@@ -57,7 +57,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     const table = await RestaurantTable.findOneAndUpdate(
       { _id: id, tenantId: auth.user.tenantId },
       { isActive: false },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!table) {
