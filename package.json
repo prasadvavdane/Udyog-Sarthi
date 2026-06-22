@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "tsx src/scripts/clean-next-dev.ts",
     "dev": "next dev",
+    "prebuild": "tsx src/scripts/guard-next-build.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

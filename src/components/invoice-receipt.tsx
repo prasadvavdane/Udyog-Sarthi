@@ -1,4 +1,4 @@
-import { formatReceiptCurrency } from "@/lib/format";
+import { formatIndianBillDateTime, formatReceiptCurrency } from "@/lib/format";
 
 type ReceiptInvoice = {
   _id: string;
@@ -7,6 +7,7 @@ type ReceiptInvoice = {
   tableName: string;
   sessionId: string;
   createdAt: string | Date;
+  billedAt?: string | Date;
   customerSnapshot?: {
     customerName: string;
     mobileNumber: string;
@@ -48,22 +49,6 @@ interface InvoiceReceiptProps {
   mode?: "screen" | "print";
 }
 
-function formatReceiptDate(value: string | Date) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-  }).format(new Date(value));
-}
-
-function formatReceiptTime(value: string | Date) {
-  return new Intl.DateTimeFormat("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(new Date(value));
-}
-
 function formatLineAmount(value: number) {
   return value.toFixed(2);
 }
@@ -88,9 +73,9 @@ export function InvoiceReceipt({
   const customerName =
     invoice.customerSnapshot?.customerName?.trim() || "Walk-in customer";
   const thankYouNote = settings.thankYouNote || "Thank you. Visit again.";
+  const billGeneratedAt = invoice.billedAt ?? invoice.createdAt;
   const metaFields = [
-    { label: "Date", value: formatReceiptDate(invoice.createdAt) },
-    { label: "Time", value: formatReceiptTime(invoice.createdAt) },
+    { label: "Bill generated", value: formatIndianBillDateTime(billGeneratedAt) },
     { label: "Table", value: invoice.tableName || "Counter" },
     { label: "Bill No", value: invoice.invoiceNumber },
     {

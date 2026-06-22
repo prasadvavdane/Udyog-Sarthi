@@ -1,11 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Download, Loader2, Printer, XCircle } from 'lucide-react';
-import { useState } from 'react';
+import { Loader2, Mail, Printer, XCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { normalizePdfFileName, stripPdfExtension } from '@/lib/restaurant-utils';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface InvoiceActionsProps {
   invoiceId: string;
@@ -31,8 +32,13 @@ function triggerPdfDownload(pdfBlob: Blob, resolvedFileName: string) {
 
 export function InvoiceActions({ invoiceId, fileName, canClose }: InvoiceActionsProps) {
   const router = useRouter();
-  const [pdfAction, setPdfAction] = useState<'print' | 'download' | null>(null);
+  const [pdfAction, setPdfAction] = useState<'print' | 'email' | null>(null);
   const [closing, setClosing] = useState(false);
+  const [requestedFileName, setRequestedFileName] = useState(() => stripPdfExtension(fileName));
+
+  useEffect(() => {
+    setRequestedFileName(stripPdfExtension(fileName));
+  }, [fileName]);
 
   const fetchPdfBlob = async () => {
     const response = await fetch(`/api/invoices/${invoiceId}/pdf`);
@@ -55,13 +61,13 @@ export function InvoiceActions({ invoiceId, fileName, canClose }: InvoiceActions
       }),
     });
 
-    const payload = (await response.json()) as { error?: string; recipientEmail?: string };
+    const payload = (await response.json()) as { error?: string; recipientEmails?: string[] };
     if (!response.ok) {
       throw new Error(payload.error ?? 'Unable to send invoice email');
     }
 
     return {
-      recipientEmail: payload.recipientEmail ?? '',
+      recipientEmails: payload.recipientEmails ?? [],
     };
   };
 
@@ -112,42 +118,24 @@ export function InvoiceActions({ invoiceId, fileName, canClose }: InvoiceActions
     }
   };
 
-  const downloadAndEmailPdf = async () => {
-    const requestedName = window.prompt('Enter the PDF file name', stripPdfExtension(fileName));
-    if (requestedName === null) {
-      return;
-    }
+  const emailPdf = async () => {
+    const resolvedFileName = normalizePdfFileName(requestedFileName, fileName);
 
-    const resolvedFileName = normalizePdfFileName(requestedName, fileName);
-
-    setPdfAction('download');
+    setPdfAction('email');
     try {
-      const pdfBlob = await fetchPdfBlob();
-      const pdfFile = new File([pdfBlob], resolvedFileName, { type: 'application/pdf' });
-      const downloadUrl = triggerPdfDownload(pdfFile, resolvedFileName);
-      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1500);
-
-      try {
-        const delivery = await emailInvoicePdf(resolvedFileName);
-        if (canClose) {
-          await closeTable({
-            success: `Invoice PDF downloaded, emailed to ${delivery.recipientEmail}, and table closed.`,
-            failure: `Invoice PDF downloaded and emailed to ${delivery.recipientEmail}, but table close failed`,
-          });
-        } else {
-          toast.success(`Invoice PDF downloaded and emailed to ${delivery.recipientEmail}.`);
-        }
-      } catch (error) {
-        console.error(error);
-        toast.error(
-          error instanceof Error
-            ? `Invoice PDF downloaded, but email failed: ${error.message}${canClose ? '. Table remains billed.' : ''}`
-            : `Invoice PDF downloaded, but email failed.${canClose ? ' Table remains billed.' : ''}`,
-        );
+      const delivery = await emailInvoicePdf(resolvedFileName);
+      const recipients = delivery.recipientEmails.join(', ');
+      if (canClose) {
+        await closeTable({
+          success: `Invoice emailed to ${recipients}, and table closed.`,
+          failure: `Invoice emailed to ${recipients}, but table close failed`,
+        });
+      } else {
+        toast.success(`Invoice emailed to ${recipients}.`);
       }
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : 'Unable to download invoice PDF');
+      toast.error(error instanceof Error ? error.message : 'Unable to email invoice PDF');
     } finally {
       setPdfAction(null);
     }
@@ -155,13 +143,21 @@ export function InvoiceActions({ invoiceId, fileName, canClose }: InvoiceActions
 
   return (
     <div className="flex flex-wrap gap-3">
+      <Input
+        value={requestedFileName}
+        onChange={(event) => setRequestedFileName(event.target.value)}
+        disabled={pdfAction !== null || closing}
+        placeholder={stripPdfExtension(fileName)}
+        aria-label="PDF file name"
+        className="h-10 min-w-56 flex-1"
+      />
       <Button type="button" onClick={() => void printInvoice()} disabled={pdfAction !== null || closing}>
         {pdfAction === 'print' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
         Print invoice
       </Button>
-      <Button type="button" variant="outline" onClick={() => void downloadAndEmailPdf()} disabled={pdfAction !== null || closing}>
-        {pdfAction === 'download' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-        Download & email PDF
+      <Button type="button" variant="outline" onClick={() => void emailPdf()} disabled={pdfAction !== null || closing}>
+        {pdfAction === 'email' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+        Email invoice PDF
       </Button>
       {canClose ? (
         <Button type="button" variant="outline" onClick={() => void closeTable()} disabled={closing || pdfAction !== null}>

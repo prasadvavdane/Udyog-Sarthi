@@ -109,6 +109,16 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
           </div>
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="invoiceEmailRecipients">Invoice email recipients</Label>
+          <Input
+            id="invoiceEmailRecipients"
+            value={form.invoiceEmailRecipients || ''}
+            onChange={(event) => setField('invoiceEmailRecipients', event.target.value)}
+            placeholder="billing@example.com, owner@example.com"
+          />
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="logo">Logo URL</Label>

@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type { PDFFont } from "pdf-lib";
-import { formatReceiptCurrency } from "@/lib/format";
+import { formatIndianBillDateTime, formatReceiptCurrency } from "@/lib/format";
 
 type PrintableInvoice = {
   invoiceNumber: string;
@@ -8,6 +8,7 @@ type PrintableInvoice = {
   tableName?: string;
   sessionId?: string;
   createdAt: string | Date;
+  billedAt?: string | Date;
   paymentMode?: string;
   customerSnapshot?: {
     customerName?: string;
@@ -46,22 +47,6 @@ type PrintableSettings = {
 
 function money(value: number) {
   return value.toFixed(2);
-}
-
-function formatReceiptDate(value: string | Date) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-  }).format(new Date(value));
-}
-
-function formatReceiptTime(value: string | Date) {
-  return new Intl.DateTimeFormat("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(new Date(value));
 }
 
 function getTokenNumber(sessionId?: string) {
@@ -161,10 +146,10 @@ export async function buildRestaurantInvoicePdf(
       ? wrapTextToWidth(settings.footerMessage, font, 9, contentWidth - 16)
       : []),
   ];
+  const billGeneratedAt = invoice.billedAt ?? invoice.createdAt;
 
   const rawMetaFields = [
-    { label: "Date", value: formatReceiptDate(invoice.createdAt) },
-    { label: "Time", value: formatReceiptTime(invoice.createdAt) },
+    { label: "Bill generated", value: formatIndianBillDateTime(billGeneratedAt) },
     { label: "Table", value: invoice.tableName || "Counter" },
     { label: "Bill No", value: invoice.invoiceNumber },
     {

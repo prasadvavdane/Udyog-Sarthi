@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
+import { formatCurrency, formatIndianBillDateTime, formatNumber } from '@/lib/format';
 import { getRestaurantInvoiceHistory } from '@/lib/restaurant-data';
 import { serializeInvoice } from '@/lib/serializers';
 import { requireTenantUser } from '@/lib/server-auth';
@@ -71,7 +71,7 @@ export default async function InvoicesPage() {
                   <p className="text-sm text-muted-foreground">
                     {invoice.tableName} - {invoice.customerSnapshot?.customerName || 'Walk-in customer'}
                   </p>
-                  <p className="text-sm text-muted-foreground">{formatDate(invoice.createdAt)}</p>
+                  <p className="text-sm text-muted-foreground">{formatIndianBillDateTime(invoice.billedAt)}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <Badge variant={invoice.paymentStatus === 'paid' ? 'default' : 'outline'}>{invoice.paymentStatus}</Badge>

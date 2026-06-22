@@ -68,6 +68,7 @@ const InvoiceSchema = new Schema<Invoice>(
       default: 'pending',
     },
     paymentMode: { type: String },
+    billedAt: { type: Date },
     notes: { type: String },
     GSTBreakup: { type: GSTBreakupSchema, required: true },
     inventoryCostTotal: { type: Number, default: 0 },
@@ -84,6 +85,7 @@ InvoiceSchema.index({ tenantId: 1, invoiceNumber: 1 }, { unique: true });
 InvoiceSchema.index({ tenantId: 1, invoiceDraftId: 1 }, { unique: true });
 InvoiceSchema.index({ tenantId: 1, tableId: 1, invoiceStatus: 1 });
 InvoiceSchema.index({ tenantId: 1, createdAt: -1 });
+InvoiceSchema.index({ tenantId: 1, billedAt: -1 });
 InvoiceSchema.index({ tenantId: 1, paymentStatus: 1 });
 InvoiceSchema.index({ tenantId: 1, customerId: 1 });
 

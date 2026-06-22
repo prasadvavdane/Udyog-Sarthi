@@ -1,5 +1,25 @@
 import { z } from 'zod';
 
+const emailListPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const invoiceEmailRecipientsSchema = z
+  .string()
+  .trim()
+  .max(500, 'Invoice email recipients is too long')
+  .optional()
+  .or(z.literal(''))
+  .refine((value) => {
+    if (!value) {
+      return true;
+    }
+
+    return value
+      .split(',')
+      .map((email) => email.trim())
+      .filter(Boolean)
+      .every((email) => emailListPattern.test(email));
+  }, 'Invoice email recipients must be valid comma-separated emails');
+
 export const productSchema = z.object({
   productName: z.string().min(2, 'Product name is required'),
   category: z.string().min(2, 'Category is required'),
@@ -35,6 +55,7 @@ export const settingsSchema = z.object({
   logo: z.string().url('Logo must be a valid URL').optional().or(z.literal('')),
   registrationNumber: z.string().max(40).optional().or(z.literal('')),
   registrationBarcodeValue: z.string().max(240).optional().or(z.literal('')),
+  invoiceEmailRecipients: invoiceEmailRecipientsSchema,
   footerMessage: z.string().max(160).optional().or(z.literal('')),
   thankYouNote: z.string().max(160).optional().or(z.literal('')),
   invoicePrefix: z.string().min(2).max(8),

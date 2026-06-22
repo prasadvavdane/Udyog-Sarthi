@@ -113,6 +113,7 @@ export async function POST(request: Request) {
     }
 
     const invoiceNumber = createInvoiceNumber(settings?.invoicePrefix ?? 'INV');
+    const billedAt = new Date();
     const paymentAmount = parsed.data.paymentAmount ?? invoice.grandTotal;
     const paymentStatus = paymentAmount >= invoice.grandTotal ? 'paid' : paymentAmount > 0 ? 'partial' : 'pending';
 
@@ -183,6 +184,7 @@ export async function POST(request: Request) {
         invoiceStatus: 'paid',
         paymentStatus,
         paymentMode: parsed.data.paymentMode,
+        billedAt,
         items: finalizedItems,
         inventoryCostTotal: Number(inventoryCostTotal.toFixed(2)),
         grossProfit: Number(grossProfit.toFixed(2)),
@@ -197,7 +199,7 @@ export async function POST(request: Request) {
           totalSpend: invoice.grandTotal,
           loyaltyPoints: pointsEarned,
         },
-        lastVisitDate: new Date(),
+        lastVisitDate: billedAt,
       });
     }
 
@@ -211,6 +213,7 @@ export async function POST(request: Request) {
       paymentMode: parsed.data.paymentMode,
       status: paymentStatus === 'pending' ? 'pending' : 'completed',
       transactionId: parsed.data.paymentMode === 'upi' ? `UPI-${Date.now()}` : undefined,
+      timestamp: billedAt,
     });
 
     await RestaurantTable.findByIdAndUpdate(invoice.tableId, {

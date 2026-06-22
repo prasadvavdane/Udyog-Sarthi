@@ -78,6 +78,7 @@ export interface Invoice extends BaseDocument {
   invoiceStatus: InvoiceStatus;
   paymentStatus: 'pending' | 'paid' | 'partial';
   paymentMode?: string;
+  billedAt?: Date;
   notes?: string;
   GSTBreakup: GSTBreakup;
   inventoryCostTotal?: number;
@@ -182,6 +183,7 @@ export interface Settings extends BaseDocument {
   logo?: string;
   registrationNumber?: string;
   registrationBarcodeValue?: string;
+  invoiceEmailRecipients?: string;
   footerMessage?: string;
   thankYouNote?: string;
   GSTSlabs: number[];

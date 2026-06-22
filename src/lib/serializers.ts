@@ -91,6 +91,7 @@ type InvoiceRecord = UnknownRecord & {
   invoiceStatus?: string;
   paymentStatus?: string;
   paymentMode?: string;
+  billedAt?: unknown;
   notes?: string;
   inventoryCostTotal?: number;
   grossProfit?: number;
@@ -170,6 +171,7 @@ export type SerializedSettings = {
   logo: string;
   registrationNumber: string;
   registrationBarcodeValue: string;
+  invoiceEmailRecipients: string;
   footerMessage: string;
   thankYouNote: string;
   invoicePrefix: string;
@@ -219,6 +221,7 @@ export type SerializedInvoice = {
   invoiceStatus: 'draft' | 'active' | 'paid' | 'closed';
   paymentStatus: 'pending' | 'paid' | 'partial';
   paymentMode: 'cash' | 'upi' | 'card' | 'qr' | '';
+  billedAt: string | Date;
   notes: string;
   GSTBreakup: {
     CGST: number;
@@ -316,6 +319,7 @@ export function serializeSettings(settings: UnknownRecord | null | undefined): S
     logo: normalizeString(settings?.logo),
     registrationNumber: normalizeString(settings?.registrationNumber),
     registrationBarcodeValue: normalizeString(settings?.registrationBarcodeValue),
+    invoiceEmailRecipients: normalizeString(settings?.invoiceEmailRecipients),
     footerMessage: normalizeString(settings?.footerMessage),
     thankYouNote: normalizeString(settings?.thankYouNote),
     invoicePrefix: normalizeString(settings?.invoicePrefix, 'INV'),
@@ -373,6 +377,12 @@ export function serializeInvoice(invoice: InvoiceRecord): SerializedInvoice {
     invoiceStatus: normalizeInvoiceStatus(invoice?.invoiceStatus),
     paymentStatus: normalizePaymentStatus(invoice?.paymentStatus),
     paymentMode: normalizePaymentMode(invoice?.paymentMode),
+    billedAt:
+      (invoice?.billedAt as string | Date | undefined) ??
+      ((invoice?.invoiceStatus === 'paid' || invoice?.invoiceStatus === 'closed'
+        ? invoice?.updatedAt
+        : invoice?.createdAt) as string | Date | undefined) ??
+      new Date(),
     notes: normalizeString(invoice?.notes),
     GSTBreakup: {
       CGST: normalizeNumber(invoice?.GSTBreakup?.CGST),

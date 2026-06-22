@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import RestaurantTable from '@/models/RestaurantTable';
 import dbConnect from '@/lib/mongodb';
-import { formatCurrency, formatDate, formatRelativeWindow } from '@/lib/format';
+import { formatCurrency, formatIndianBillDateTime } from '@/lib/format';
 import { getInvoiceForTenant, getRestaurantSettings } from '@/lib/restaurant-data';
 import { getInvoiceFileName } from '@/lib/restaurant-utils';
 import { serializeInvoice, serializeSettings, serializeTable } from '@/lib/serializers';
@@ -84,8 +84,7 @@ export default async function InvoiceDetailPage({ params }: InvoiceDetailPagePro
               {[
                 ['Invoice number', invoiceData.invoiceNumber],
                 ['Table', invoiceData.tableName || tableData?.tableName || 'Unknown'],
-                ['Date', formatDate(invoiceData.createdAt)],
-                ['Time', formatRelativeWindow(invoiceData.createdAt)],
+                ['Bill generated', formatIndianBillDateTime(invoiceData.billedAt)],
                 ['Customer', invoiceData.customerSnapshot?.customerName || 'Walk-in customer'],
                 ['Mobile', invoiceData.customerSnapshot?.mobileNumber || 'Not captured'],
                 ['Guests', invoiceData.customerSnapshot?.numberOfGuests?.toString() || 'Not captured'],

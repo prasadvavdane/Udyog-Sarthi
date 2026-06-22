@@ -52,6 +52,7 @@ export async function PUT(request: Request) {
         logo: parsed.data.logo || undefined,
         registrationNumber: parsed.data.registrationNumber || undefined,
         registrationBarcodeValue: parsed.data.registrationBarcodeValue || undefined,
+        invoiceEmailRecipients: parsed.data.invoiceEmailRecipients || undefined,
         footerMessage: parsed.data.footerMessage || undefined,
         thankYouNote: parsed.data.thankYouNote || undefined,
         invoicePrefix: parsed.data.invoicePrefix,

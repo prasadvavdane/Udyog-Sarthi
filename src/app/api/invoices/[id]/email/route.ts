@@ -36,7 +36,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     return NextResponse.json({
       success: true,
-      recipientEmail: delivery.recipientEmail,
+      recipientEmails: delivery.recipientEmails,
       fileName: delivery.fileName,
     });
   } catch (error) {

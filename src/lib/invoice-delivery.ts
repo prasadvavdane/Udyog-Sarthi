@@ -13,22 +13,46 @@ type InvoicePdfContext = {
   defaultFileName: string;
 };
 
-const DEFAULT_INVOICE_DELIVERY_EMAIL = 'prasadvavdane@gmail.com';
+const PRIMARY_INVOICE_RECIPIENT = 'prasadvavdane45@gmail.com';
 const DEFAULT_GMAIL_SMTP_HOST = 'smtp.gmail.com';
 const DEFAULT_GMAIL_SMTP_PORT = 465;
 const SMTP_CONNECTION_TIMEOUT_MS = 8000;
 const SMTP_GREETING_TIMEOUT_MS = 8000;
 const SMTP_SOCKET_TIMEOUT_MS = 20000;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function getInvoiceDeliveryRecipient() {
-  return process.env.INVOICE_DELIVERY_EMAIL?.trim() || DEFAULT_INVOICE_DELIVERY_EMAIL;
+function normalizeEmail(value: string | undefined) {
+  return value?.trim() || '';
+}
+
+function splitRecipientEmails(value: string | undefined) {
+  return normalizeEmail(value)
+    .split(',')
+    .map((email) => email.trim())
+    .filter(Boolean);
+}
+
+export function getInvoiceDeliveryRecipients(settings: NonNullable<SerializedSettings>) {
+  const recipientEmails = Array.from(
+    new Set([
+      PRIMARY_INVOICE_RECIPIENT,
+      ...splitRecipientEmails(settings.invoiceEmailRecipients),
+    ]),
+  );
+
+  const invalidEmail = recipientEmails.find((email) => !EMAIL_PATTERN.test(email));
+  if (invalidEmail) {
+    throw new Error(`Invoice recipient email is invalid: ${invalidEmail}`);
+  }
+
+  return recipientEmails;
 }
 
 function getGmailSmtpCredentials() {
   const user = process.env.GMAIL_SMTP_USER?.trim();
   const pass = process.env.GMAIL_SMTP_APP_PASSWORD?.trim();
 
-  if (!user || !pass) {
+  if (!user || !pass || user === 'yourgmail@gmail.com' || pass === 'your-16-char-app-password') {
     throw new Error('Gmail SMTP is not configured. Set GMAIL_SMTP_USER and GMAIL_SMTP_APP_PASSWORD.');
   }
 
@@ -106,7 +130,7 @@ export async function buildInvoicePdfContext(invoiceId: string, tenantId: string
   const pdfBytes = await buildRestaurantInvoicePdf(
     {
       ...invoice,
-      createdAt: invoice.createdAt ?? new Date(),
+      createdAt: invoice.billedAt ?? invoice.createdAt ?? new Date(),
     },
     {
       businessName: settings.businessName || 'Restaurant POS',
@@ -135,7 +159,7 @@ export async function sendInvoicePdfEmail(input: {
   pdfBytes: Uint8Array;
 }) {
   const { user, pass } = getGmailSmtpCredentials();
-  const recipientEmail = getInvoiceDeliveryRecipient();
+  const recipientEmails = getInvoiceDeliveryRecipients(input.settings);
   const resolvedFileName = normalizePdfFileName(input.fileName, input.fileName);
   const transport = getGmailSmtpTransport(user, pass);
 
@@ -144,7 +168,7 @@ export async function sendInvoicePdfEmail(input: {
 
     await transporter.sendMail({
       from: getMailFromValue(user, input.settings.businessName),
-      to: recipientEmail,
+      to: recipientEmails,
       subject: `Invoice ${input.invoice.invoiceNumber} from ${input.settings.businessName}`,
       text: [
         `Invoice Number: ${input.invoice.invoiceNumber}`,
@@ -167,7 +191,7 @@ export async function sendInvoicePdfEmail(input: {
   }
 
   return {
-    recipientEmail,
+    recipientEmails,
     fileName: resolvedFileName,
   };
 }
