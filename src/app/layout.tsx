@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   description: "Multi-tenant billing, GST, POS, CRM and analytics platform for India SMBs.",
 };
 
+// Keep Vercel functions close to the MongoDB Atlas cluster in AWS Mumbai.
+export const preferredRegion = "bom1";
+
 export default function RootLayout({
   children,
 }: Readonly<{

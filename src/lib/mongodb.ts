@@ -41,6 +41,11 @@ async function dbConnect() {
     const opts = {
       bufferCommands: false,
       serverSelectionTimeoutMS: 10000,
+      // Small serverless pools avoid exhausting Atlas connection capacity across
+      // concurrently warmed Vercel functions while preserving connection reuse.
+      maxPoolSize: 5,
+      minPoolSize: 0,
+      maxIdleTimeMS: 10000,
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
