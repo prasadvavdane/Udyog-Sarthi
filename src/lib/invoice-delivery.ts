@@ -33,10 +33,10 @@ function splitRecipientEmails(value: string | undefined) {
 }
 
 export function getInvoiceDeliveryRecipients(settings: NonNullable<SerializedSettings>) {
-  const configuredRecipient = process.env.INVOICE_DELIVERY_EMAIL?.trim() || DEFAULT_INVOICE_RECIPIENT;
+  const configuredRecipients = splitRecipientEmails(process.env.INVOICE_DELIVERY_EMAIL);
   const recipientEmails = Array.from(
     new Set([
-      configuredRecipient,
+      ...(configuredRecipients.length > 0 ? configuredRecipients : [DEFAULT_INVOICE_RECIPIENT]),
       ...splitRecipientEmails(settings.invoiceEmailRecipients),
     ]),
   );
