@@ -13,7 +13,7 @@ type InvoicePdfContext = {
   defaultFileName: string;
 };
 
-const PRIMARY_INVOICE_RECIPIENT = 'prasadvavdane45@gmail.com';
+const DEFAULT_INVOICE_RECIPIENT = 'prasadvavdane45@gmail.com';
 const DEFAULT_GMAIL_SMTP_HOST = 'smtp.gmail.com';
 const DEFAULT_GMAIL_SMTP_PORT = 465;
 const SMTP_CONNECTION_TIMEOUT_MS = 8000;
@@ -33,9 +33,10 @@ function splitRecipientEmails(value: string | undefined) {
 }
 
 export function getInvoiceDeliveryRecipients(settings: NonNullable<SerializedSettings>) {
+  const configuredRecipient = process.env.INVOICE_DELIVERY_EMAIL?.trim() || DEFAULT_INVOICE_RECIPIENT;
   const recipientEmails = Array.from(
     new Set([
-      PRIMARY_INVOICE_RECIPIENT,
+      configuredRecipient,
       ...splitRecipientEmails(settings.invoiceEmailRecipients),
     ]),
   );
