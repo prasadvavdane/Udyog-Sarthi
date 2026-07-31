@@ -46,7 +46,7 @@ export default async function ProductsPage() {
       </div>
 
       {canManage ? (
-        <ProductManager initialProducts={serializedProducts} />
+        <ProductManager initialProducts={serializedProducts} showProductImport={false} />
       ) : (
         <Card>
           <CardContent className="p-6 text-sm leading-7 text-muted-foreground">

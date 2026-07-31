@@ -27,17 +27,17 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home, description: 'Sales pulse and quick actions' },
-  { name: 'POS', href: '/dashboard/pos', icon: ShoppingCart, description: 'Fast cashier billing workspace' },
-  { name: 'Products', href: '/dashboard/products', icon: Package, description: 'Catalog, stock and pricing' },
-  { name: 'Inventory', href: '/dashboard/inventory', icon: Layers, description: 'Stock rooms, inward, outward and recipes' },
-  { name: 'Invoices', href: '/dashboard/invoices', icon: Receipt, description: 'Invoices and collections' },
-  { name: 'Customers', href: '/dashboard/customers', icon: Users, description: 'CRM and loyalty insights' },
-  { name: 'Payments', href: '/dashboard/payments', icon: CreditCard, description: 'Modes, settlements and status' },
-  { name: 'Reports', href: '/dashboard/reports', icon: FileText, description: 'Exports and compliance packs' },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, description: 'Trends, top sellers and profit' },
-  { name: 'Templates', href: '/dashboard/templates', icon: Layers3, description: 'Industry-specific workflows' },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings, description: 'Business, GST and tenant setup' },
+  { name: 'Dashboard', href: '/dashboard', icon: Home, description: 'Sales pulse and quick actions', enabled: true },
+  { name: 'POS', href: '/dashboard/pos', icon: ShoppingCart, description: 'Fast cashier billing workspace', enabled: true },
+  { name: 'Products', href: '/dashboard/products', icon: Package, description: 'Catalog, stock and pricing', enabled: true },
+  { name: 'Inventory', href: '/dashboard/inventory', icon: Layers, description: 'Stock rooms, inward, outward and recipes', enabled: false },
+  { name: 'Invoices', href: '/dashboard/invoices', icon: Receipt, description: 'Invoices and collections', enabled: true },
+  { name: 'Customers', href: '/dashboard/customers', icon: Users, description: 'CRM and loyalty insights', enabled: true },
+  { name: 'Payments', href: '/dashboard/payments', icon: CreditCard, description: 'Modes, settlements and status', enabled: false },
+  { name: 'Reports', href: '/dashboard/reports', icon: FileText, description: 'Exports and compliance packs', enabled: false },
+  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, description: 'Trends, top sellers and profit', enabled: false },
+  { name: 'Templates', href: '/dashboard/templates', icon: Layers3, description: 'Industry-specific workflows', enabled: false },
+  { name: 'Settings', href: '/dashboard/settings', icon: Settings, description: 'Business, GST and tenant setup', enabled: false },
 ];
 
 interface DashboardLayoutProps {
@@ -58,6 +58,7 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children, user, workspace }: DashboardLayoutProps) {
   const pathname = usePathname();
   const templateMeta = getIndustryTemplateMeta(workspace.industryTemplate);
+  const visibleNavigation = navigation.filter((item) => item.enabled);
 
   const handleSignOut = () => {
     signOut({ callbackUrl: '/auth/signin' });
@@ -92,7 +93,7 @@ export default function DashboardLayout({ children, user, workspace }: Dashboard
           </div>
 
           <nav className="mt-6 flex-1 space-y-2">
-            {navigation.map((item) => {
+            {visibleNavigation.map((item) => {
               const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
 
               return (
@@ -154,9 +155,6 @@ export default function DashboardLayout({ children, user, workspace }: Dashboard
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button asChild variant="outline" size="sm">
-                    <Link href="/dashboard/templates">Template modules</Link>
-                  </Button>
                   <Button asChild size="sm">
                     <Link href="/dashboard/pos">Start billing</Link>
                   </Button>
@@ -164,7 +162,7 @@ export default function DashboardLayout({ children, user, workspace }: Dashboard
               </div>
 
               <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden">
-                {navigation.map((item) => {
+                {visibleNavigation.map((item) => {
                   const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
 
                   return (

@@ -40,6 +40,7 @@ export default async function POSPage() {
         <RestaurantTableGrid
           initialTables={tables}
           canManageTables={['business-admin', 'super-admin'].includes(user.role)}
+          showTableManagement={false}
         />
 
         <div className="rounded-[28px] border border-border bg-white/70 p-5 text-sm leading-7 text-muted-foreground">

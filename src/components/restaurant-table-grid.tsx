@@ -24,6 +24,7 @@ type TableCard = {
 interface RestaurantTableGridProps {
   initialTables: TableCard[];
   canManageTables: boolean;
+  showTableManagement?: boolean;
 }
 
 const statusTone: Record<TableCard['status'], 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -33,7 +34,7 @@ const statusTone: Record<TableCard['status'], 'default' | 'secondary' | 'outline
   reserved: 'destructive',
 };
 
-export function RestaurantTableGrid({ initialTables, canManageTables }: RestaurantTableGridProps) {
+export function RestaurantTableGrid({ initialTables, canManageTables, showTableManagement = true }: RestaurantTableGridProps) {
   const [tables, setTables] = useState(initialTables);
   const [newTableName, setNewTableName] = useState('');
   const [capacity, setCapacity] = useState('4');
@@ -108,7 +109,7 @@ export function RestaurantTableGrid({ initialTables, canManageTables }: Restaura
 
   return (
     <div className="space-y-4">
-     <Card>
+     {showTableManagement ? <Card>
   <CardHeader>
     <CardTitle>Table summary</CardTitle>
   </CardHeader>
@@ -202,7 +203,7 @@ export function RestaurantTableGrid({ initialTables, canManageTables }: Restaura
       ) : null}
     </div>
   </CardContent>
-</Card>
+</Card> : null}
 
       <Card>
         <CardHeader>

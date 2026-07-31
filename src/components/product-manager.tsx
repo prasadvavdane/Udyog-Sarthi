@@ -52,9 +52,10 @@ const emptyForm: ProductInput = {
 
 interface ProductManagerProps {
   initialProducts: ProductRow[];
+  showProductImport?: boolean;
 }
 
-export function ProductManager({ initialProducts }: ProductManagerProps) {
+export function ProductManager({ initialProducts, showProductImport = true }: ProductManagerProps) {
   const [products, setProducts] = useState(initialProducts);
   const [form, setForm] = useState<ProductInput>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -196,11 +197,13 @@ export function ProductManager({ initialProducts }: ProductManagerProps) {
 
   return (
     <div className="min-w-0 space-y-4">
-      <ProductImporter
-        onImported={(importedProducts) =>
-          setProducts((current) => [...importedProducts, ...current])
-        }
-      />
+      {showProductImport ? (
+        <ProductImporter
+          onImported={(importedProducts) =>
+            setProducts((current) => [...importedProducts, ...current])
+          }
+        />
+      ) : null}
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
         <Card className="min-w-0 overflow-hidden">
